@@ -2546,8 +2546,7 @@
         function updateDataCell(idx, key, val) { if (key === 'week') operationsData[idx].week = val; else { const m = customMetricDefinitions.find(x => x.key === key); if (m && ['number','currency','percentage'].includes(m.type)) operationsData[idx][key] = ['N/C','NC'].includes(String(val).trim().toUpperCase()) ? 'N/C' : (parseFloat(val) || 0); else operationsData[idx][key] = val; } updateCalculations(); }
         function deleteDataRow(idx) { operationsData.splice(idx, 1); updateCalculations(); }
 
-const SUPABASE_URL = "https://ptuimtqysgoofcpenhat.supabase.co
-"; // Settings → API → Project URL
+const SUPABASE_URL = "https://ptuimtqysgoofcpenhat.supabase.co"; // Settings → API → Project URL
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB0dWltdHF5c2dvb2ZjcGVuaGF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3MjI4ODAsImV4cCI6MjEwMzI5ODg4MH0.hlykCHPzwfK0BK0FUeTXojUEdVnxIxdMmM4LfKpwLpo"; // Settings → API → anon public key
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
