@@ -2780,8 +2780,272 @@ function subscribeToWeeklyReviews() {
        subscribeToWeeklyReviews();
      });
    ---------------------------------------------------------------------------- */
+/* ---- Live collaborative draft session logic ---- */
+let currentSessionId = null;
+let isApplyingRemoteUpdate = false;
+let draftSyncTimer = null;
+let currentSessionChannel = null;
 
-        window.onload = function() {ensureSignedIn().then(() => { refreshSavedReviewSessionsDropdown(); subscribeToWeeklyReviews(); })
+function buildSessionDataObject() {
+  const dateLabel =
+    document.getElementById("review-date-input")?.value.trim() ||
+    `Session ${new Date().toLocaleDateString()}`;
+
+  const sessionData = {
+    date_label: dateLabel,
+    leader: document.getElementById("review-leader-input")?.value.trim() || "",
+    attendees: document.getElementById("review-attendees-input")?.value.trim() || "",
+    tasks: [],
+    sections: {},
+    ratings: [],
+    qc_data: getQCData(),
+  };
+
+  document.querySelectorAll(".rolling-task-card").forEach(card => {
+    const text = card.querySelector(".task-text-input")?.value.trim();
+    if (text) {
+      sessionData.tasks.push({
+        id: card.dataset.taskId,
+        task: text,
+        owner: card.querySelector(".task-owner-input")?.value.trim() || "",
+        dueDate: card.querySelector(".task-date-input")?.value || "",
+        status: card.querySelector(".task-status-select")?.value || "Open",
+        ageWeeks: parseInt(card.dataset.ageWeeks) || 1,
+      });
+    }
+  });
+
+  REVIEW_AGENDA_SECTIONS.forEach(containerId => {
+    sessionData.sections[containerId] = [];
+    const c = document.getElementById(containerId);
+    if (c) {
+      c.querySelectorAll(".agenda-field-group").forEach(g => {
+        const val = (g.querySelector(".agenda-text-input") || g.querySelector('input[type="text"]'))?.value.trim();
+        if (val) sessionData.sections[containerId].push({ text: val, ageWeeks: parseInt(g.dataset.ageWeeks) || 1 });
+      });
+    }
+  });
+
+  document.querySelectorAll(".meeting-rating-input").forEach(input => {
+    if (input.value !== "") sessionData.ratings.push(input.value);
+  });
+
+  return sessionData;
+}
+
+function populateFormFromSession(session) {
+  isApplyingRemoteUpdate = true;
+
+  if (document.getElementById("review-date-input")) document.getElementById("review-date-input").value = session.date_label || "";
+  if (document.getElementById("review-leader-input")) document.getElementById("review-leader-input").value = session.leader || "";
+  if (document.getElementById("review-attendees-input")) document.getElementById("review-attendees-input").value = session.attendees || "";
+  setQCData(session.qc_data || {});
+
+  const taskContainer = document.getElementById("rolling-tasks-container");
+  if (taskContainer) {
+    taskContainer.innerHTML = "";
+    if ((session.tasks || []).length === 0) addRollingTaskCard();
+    else session.tasks.forEach(t => addRollingTaskCard(t));
+  }
+
+  REVIEW_AGENDA_SECTIONS.forEach(containerId => {
+    const c = document.getElementById(containerId);
+    if (c) {
+      c.innerHTML = "";
+      const vals = (session.sections || {})[containerId] || [];
+      if (vals.length === 0) addAgendaField(containerId);
+      else vals.forEach(val => addAgendaField(containerId, val));
+    }
+  });
+
+  const ratingContainer = document.getElementById("rating-fields-container");
+  if (ratingContainer) {
+    ratingContainer.innerHTML = "";
+    const rts = session.ratings || [];
+    for (let i = 0; i < Math.max(10, rts.length); i++) addRatingField(rts[i] !== undefined ? rts[i] : "");
+  }
+
+  calculateMeetingRatingAverage();
+  isApplyingRemoteUpdate = false;
+}
+
+function scheduleDraftSync() {
+  if (isApplyingRemoteUpdate || !currentSessionId) return;
+  clearTimeout(draftSyncTimer);
+  draftSyncTimer = setTimeout(syncDraftToServer, 600);
+}
+
+async function syncDraftToServer() {
+  if (!currentSessionId) return;
+  const sessionData = buildSessionDataObject();
+  const { error } = await supabaseClient.from("weekly_reviews").update(sessionData).eq("id", currentSessionId);
+  if (error) console.error(error);
+}
+
+function subscribeToActiveDraft(sessionId) {
+  if (currentSessionChannel) supabaseClient.removeChannel(currentSessionChannel);
+  currentSessionChannel = supabaseClient
+    .channel("draft_session_" + sessionId)
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "weekly_reviews", filter: `id=eq.${sessionId}` },
+      payload => {
+        populateFormFromSession(payload.new);
+      }
+    )
+    .subscribe();
+}
+
+function unsubscribeFromActiveDraft() {
+  if (currentSessionChannel) {
+    supabaseClient.removeChannel(currentSessionChannel);
+    currentSessionChannel = null;
+  }
+}
+
+async function checkForActiveDraftOnLoad() {
+  const { data, error } = await supabaseClient
+    .from("weekly_reviews")
+    .select("*")
+    .eq("is_draft", true)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (error) { console.error(error); return; }
+
+  if (data && data.length > 0) {
+    currentSessionId = data[0].id;
+    populateFormFromSession(data[0]);
+    subscribeToActiveDraft(currentSessionId);
+    showImportToast("Joined an in-progress review session.");
+  }
+}
+
+async function startNewReviewSession() {
+  const { data: existingDrafts, error: draftErr } = await supabaseClient
+    .from("weekly_reviews")
+    .select("*")
+    .eq("is_draft", true)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (draftErr) console.error(draftErr);
+
+  if (existingDrafts && existingDrafts.length > 0) {
+    currentSessionId = existingDrafts[0].id;
+    populateFormFromSession(existingDrafts[0]);
+    subscribeToActiveDraft(currentSessionId);
+    showImportToast("Joined the in-progress review session.");
+    return;
+  }
+
+  const today = new Date();
+  const dateLabel = `Week of ${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
+  if (document.getElementById("review-date-input")) document.getElementById("review-date-input").value = dateLabel;
+
+  const { data: latestSessions, error } = await supabaseClient
+    .from("weekly_reviews")
+    .select("*")
+    .eq("is_draft", false)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (error) console.error(error);
+  const latestSession = latestSessions && latestSessions[0];
+
+  const taskContainer = document.getElementById("rolling-tasks-container");
+  if (taskContainer) taskContainer.innerHTML = "";
+  let carriedCount = 0;
+
+  if (latestSession) {
+    if (document.getElementById("review-leader-input")) document.getElementById("review-leader-input").value = latestSession.leader || "";
+    if (document.getElementById("review-attendees-input")) document.getElementById("review-attendees-input").value = latestSession.attendees || "";
+    (latestSession.tasks || []).forEach(t => {
+      if (t.status !== "Complete") {
+        addRollingTaskCard({ task: t.task, owner: t.owner, dueDate: t.dueDate, status: t.status, ageWeeks: (t.ageWeeks || 1) + 1 });
+        carriedCount++;
+      }
+    });
+  }
+  if (carriedCount === 0) addRollingTaskCard();
+
+  const initialData = buildSessionDataObject();
+  initialData.date_label = dateLabel;
+  initialData.is_draft = true;
+
+  const { data: inserted, error: insertErr } = await supabaseClient.from("weekly_reviews").insert(initialData).select().single();
+  if (insertErr) {
+    console.error(insertErr);
+    showImportToast("Couldn't start a shared session: " + insertErr.message);
+    return;
+  }
+
+  currentSessionId = inserted.id;
+  subscribeToActiveDraft(currentSessionId);
+  showImportToast("Started a new shared review session!");
+}
+
+async function saveReviewSession() {
+  const sessionData = buildSessionDataObject();
+  sessionData.is_draft = false;
+
+  if (!currentSessionId) {
+    const { error } = await supabaseClient.from("weekly_reviews").insert(sessionData);
+    if (error) { console.error(error); showImportToast("Save failed: " + error.message); return; }
+  } else {
+    const { error } = await supabaseClient.from("weekly_reviews").update(sessionData).eq("id", currentSessionId);
+    if (error) { console.error(error); showImportToast("Save failed: " + error.message); return; }
+    unsubscribeFromActiveDraft();
+    currentSessionId = null;
+  }
+
+  await refreshSavedReviewSessionsDropdown();
+  showImportToast("Saved meeting session!");
+}
+
+async function refreshSavedReviewSessionsDropdown() {
+  const { data, error } = await supabaseClient
+    .from("weekly_reviews")
+    .select("id, date_label, created_at")
+    .eq("is_draft", false)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error(error);
+    showImportToast("Couldn't load past sessions: " + error.message);
+    return;
+  }
+
+  const s = document.getElementById("review-saved-sessions-select");
+  if (s) {
+    s.innerHTML =
+      `<option value="">-- Recall Past Review Session --</option>` +
+      data.map(item => `<option value="${item.id}">${item.date_label}</option>`).join("");
+  }
+}
+
+document.addEventListener("input", (e) => {
+  if (e.target.matches(
+    "#review-date-input, #review-leader-input, #review-attendees-input, " +
+    ".task-text-input, .task-owner-input, .task-date-input, " +
+    ".agenda-text-input, .meeting-rating-input, [id^='qc-']"
+  )) {
+    scheduleDraftSync();
+  }
+});
+
+document.addEventListener("change", (e) => {
+  if (e.target.matches(".task-status-select, #qc-training-system-select")) {
+    scheduleDraftSync();
+  }
+});
+
+document.addEventListener("click", (e) => {
+  if (e.target.closest(".rolling-task-card button") || e.target.closest(".agenda-field-group button")) {
+    setTimeout(scheduleDraftSync, 0);
+  }
+});
+        window.onload = function() {ensureSignedIn().then(() => { refreshSavedReviewSessionsDropdown(); subscribeToWeeklyReviews();checkForActiveDraftOnLoad();})
             if(typeof initCharts === 'function') initCharts();
             if(typeof updateCalculations === 'function') updateCalculations();
             if(typeof enableChartDragAndDrop === 'function') enableChartDragAndDrop();
