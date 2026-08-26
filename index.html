@@ -10,6 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- SheetJS for parsing .xlsx and .csv files directly in browser -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- FontAwesome for Lab & Operations Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts Inter & JetBrains Mono -->
@@ -2544,8 +2545,260 @@
 
         function updateDataCell(idx, key, val) { if (key === 'week') operationsData[idx].week = val; else { const m = customMetricDefinitions.find(x => x.key === key); if (m && ['number','currency','percentage'].includes(m.type)) operationsData[idx][key] = ['N/C','NC'].includes(String(val).trim().toUpperCase()) ? 'N/C' : (parseFloat(val) || 0); else operationsData[idx][key] = val; } updateCalculations(); }
         function deleteDataRow(idx) { operationsData.splice(idx, 1); updateCalculations(); }
+/* ============================================================================
+   Lab Alley Ops Dashboard — Supabase integration
+   ----------------------------------------------------------------------------
+   Where this goes: paste the <script> tag below into <head> (after the other
+   CDN <script> tags), and drop the rest of this file's contents into your
+   existing <script> block, REPLACING the functions of the same name that
+   currently use localStorage (refreshSavedReviewSessionsDropdown,
+   saveReviewSession, loadSelectedReviewSession, startNewReviewSession).
 
-        window.onload = function() {
+   Fill in SUPABASE_URL and SUPABASE_ANON_KEY once you're in
+   Settings → API on the ops-dashboard project. Never put the service_role
+   key here — anon key only, this file ships to the browser.
+   ============================================================================ */
+
+// Add to <head>:
+// <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+const SUPABASE_URL = "https://ptuimtqysgoofcpenhat.supabase.co/rest/v1/
+"; // Settings → API → Project URL
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB0dWltdHF5c2dvb2ZjcGVuaGF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3MjI4ODAsImV4cCI6MjEwMzI5ODg4MH0.hlykCHPzwfK0BK0FUeTXojUEdVnxIxdMmM4LfKpwLpo"; // Settings → API → anon public key
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ----------------------------------------------------------------------------
+   Auth — simple magic-link sign-in. Call ensureSignedIn() on page load before
+   touching weekly_reviews; RLS will reject requests from anonymous sessions.
+   ---------------------------------------------------------------------------- */
+async function ensureSignedIn() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) return session;
+
+  // No session yet — show a lightweight prompt. Replace with a real modal
+  // if you want something nicer than window.prompt.
+  const email = window.prompt("Sign in with your @laballey.com email:");
+  if (!email) return null;
+
+  const { error } = await supabase.auth.signInWithOtp({ email });
+  if (error) {
+    console.error(error);
+    showImportToast("Sign-in failed: " + error.message);
+    return null;
+  }
+  showImportToast("Check your email for a magic link.");
+  return null;
+}
+
+/* ----------------------------------------------------------------------------
+   Replaces: refreshSavedReviewSessionsDropdown()
+   Was: reading `laballey_weekly_reviews` from localStorage.
+   Now: pulling every user's saved sessions from Supabase, newest first.
+   ---------------------------------------------------------------------------- */
+async function refreshSavedReviewSessionsDropdown() {
+  const { data, error } = await supabase
+    .from("weekly_reviews")
+    .select("id, date_label, created_at")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error(error);
+    showImportToast("Couldn't load past sessions: " + error.message);
+    return;
+  }
+
+  const s = document.getElementById("review-saved-sessions-select");
+  if (s) {
+    s.innerHTML =
+      `<option value="">-- Recall Past Review Session --</option>` +
+      data.map(item => `<option value="${item.id}">${item.date_label}</option>`).join("");
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   Replaces: saveReviewSession()
+   Was: unshift into a JSON array in localStorage.
+   Now: insert a row; every connected browser sees it via the Realtime
+   subscription set up below, no polling needed.
+   ---------------------------------------------------------------------------- */
+async function saveReviewSession() {
+  const dateLabel =
+    document.getElementById("review-date-input")?.value.trim() ||
+    `Session ${new Date().toLocaleDateString()}`;
+
+  const sessionData = {
+    date_label: dateLabel,
+    leader: document.getElementById("review-leader-input")?.value.trim() || "",
+    attendees: document.getElementById("review-attendees-input")?.value.trim() || "",
+    tasks: [],
+    sections: {},
+    ratings: [],
+    qc_data: getQCData(),
+  };
+
+  document.querySelectorAll(".rolling-task-card").forEach(card => {
+    const text = card.querySelector(".task-text-input")?.value.trim();
+    if (text) {
+      sessionData.tasks.push({
+        id: card.dataset.taskId,
+        task: text,
+        owner: card.querySelector(".task-owner-input")?.value.trim() || "",
+        dueDate: card.querySelector(".task-date-input")?.value || "",
+        status: card.querySelector(".task-status-select")?.value || "Open",
+        ageWeeks: parseInt(card.dataset.ageWeeks) || 1,
+      });
+    }
+  });
+
+  REVIEW_AGENDA_SECTIONS.forEach(containerId => {
+    sessionData.sections[containerId] = [];
+    const c = document.getElementById(containerId);
+    if (c) {
+      c.querySelectorAll(".agenda-field-group").forEach(g => {
+        const val = (g.querySelector(".agenda-text-input") || g.querySelector('input[type="text"]'))?.value.trim();
+        if (val) sessionData.sections[containerId].push({ text: val, ageWeeks: parseInt(g.dataset.ageWeeks) || 1 });
+      });
+    }
+  });
+
+  document.querySelectorAll(".meeting-rating-input").forEach(input => {
+    if (input.value !== "") sessionData.ratings.push(input.value);
+  });
+
+  const { error } = await supabase.from("weekly_reviews").insert(sessionData);
+  if (error) {
+    console.error(error);
+    showImportToast("Save failed: " + error.message);
+    return;
+  }
+
+  await refreshSavedReviewSessionsDropdown();
+  showImportToast("Saved meeting session!");
+}
+
+/* ----------------------------------------------------------------------------
+   Replaces: loadSelectedReviewSession(sessionId)
+   Was: JSON.parse from localStorage then .find(). Now: fetch by id.
+   Note: session.qcData -> session.qc_data (Postgres/JS naming), and
+   session.dateLabel -> session.date_label.
+   ---------------------------------------------------------------------------- */
+async function loadSelectedReviewSession(sessionId) {
+  if (!sessionId) return;
+
+  const { data: session, error } = await supabase
+    .from("weekly_reviews")
+    .select("*")
+    .eq("id", sessionId)
+    .single();
+
+  if (error || !session) {
+    console.error(error);
+    showImportToast("Couldn't load that session.");
+    return;
+  }
+
+  if (document.getElementById("review-date-input")) document.getElementById("review-date-input").value = session.date_label || "";
+  if (document.getElementById("review-leader-input")) document.getElementById("review-leader-input").value = session.leader || "";
+  if (document.getElementById("review-attendees-input")) document.getElementById("review-attendees-input").value = session.attendees || "";
+  setQCData(session.qc_data || {});
+
+  const taskContainer = document.getElementById("rolling-tasks-container");
+  if (taskContainer) {
+    taskContainer.innerHTML = "";
+    if ((session.tasks || []).length === 0) addRollingTaskCard();
+    else session.tasks.forEach(t => addRollingTaskCard(t));
+  }
+
+  REVIEW_AGENDA_SECTIONS.forEach(containerId => {
+    const c = document.getElementById(containerId);
+    if (c) {
+      c.innerHTML = "";
+      const vals = (session.sections || {})[containerId] || [];
+      if (vals.length === 0) addAgendaField(containerId);
+      else vals.forEach(val => addAgendaField(containerId, val));
+    }
+  });
+
+  const ratingContainer = document.getElementById("rating-fields-container");
+  if (ratingContainer) {
+    ratingContainer.innerHTML = "";
+    const rts = session.ratings || [];
+    for (let i = 0; i < Math.max(10, rts.length); i++) addRatingField(rts[i] !== undefined ? rts[i] : "");
+  }
+
+  calculateMeetingRatingAverage();
+  showImportToast("Loaded session!");
+}
+
+/* ----------------------------------------------------------------------------
+   Replaces: startNewReviewSession()
+   Was: .shift() on the local array to find the latest session.
+   Now: query for the single most recent row.
+   ---------------------------------------------------------------------------- */
+async function startNewReviewSession() {
+  const today = new Date();
+  if (document.getElementById("review-date-input")) {
+    document.getElementById("review-date-input").value =
+      `Week of ${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
+  }
+
+  const { data: latestSessions, error } = await supabase
+    .from("weekly_reviews")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (error) console.error(error);
+  const latestSession = latestSessions && latestSessions[0];
+
+  const taskContainer = document.getElementById("rolling-tasks-container");
+  if (taskContainer) taskContainer.innerHTML = "";
+  let carriedCount = 0;
+
+  if (latestSession) {
+    if (document.getElementById("review-leader-input")) document.getElementById("review-leader-input").value = latestSession.leader || "";
+    if (document.getElementById("review-attendees-input")) document.getElementById("review-attendees-input").value = latestSession.attendees || "";
+    (latestSession.tasks || []).forEach(t => {
+      if (t.status !== "Complete") {
+        addRollingTaskCard({ task: t.task, owner: t.owner, dueDate: t.dueDate, status: t.status, ageWeeks: (t.ageWeeks || 1) + 1 });
+        carriedCount++;
+      }
+    });
+  }
+  if (carriedCount === 0) addRollingTaskCard();
+}
+
+/* ----------------------------------------------------------------------------
+   Realtime: keep the dropdown in sync when a teammate saves a session while
+   you have the page open, no refresh needed. Call this once on page load,
+   after ensureSignedIn().
+   ---------------------------------------------------------------------------- */
+function subscribeToWeeklyReviews() {
+  supabase
+    .channel("weekly_reviews_changes")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "weekly_reviews" },
+      payload => {
+        refreshSavedReviewSessionsDropdown();
+        showImportToast("Weekly reviews updated by a teammate.");
+      }
+    )
+    .subscribe();
+}
+
+/* ----------------------------------------------------------------------------
+   Suggested wiring on page load (add inside your existing DOMContentLoaded
+   / init function):
+
+     ensureSignedIn().then(() => {
+       refreshSavedReviewSessionsDropdown();
+       subscribeToWeeklyReviews();
+     });
+   ---------------------------------------------------------------------------- */
+
+        window.onload = function() {ensureSignedIn().then(() => { refreshSavedReviewSessionsDropdown(); subscribeToWeeklyReviews(); })
             if(typeof initCharts === 'function') initCharts();
             if(typeof updateCalculations === 'function') updateCalculations();
             if(typeof enableChartDragAndDrop === 'function') enableChartDragAndDrop();
