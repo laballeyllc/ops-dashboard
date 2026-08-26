@@ -2549,14 +2549,14 @@
 const SUPABASE_URL = "https://ptuimtqysgoofcpenhat.supabase.co"; // Settings → API → Project URL
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB0dWltdHF5c2dvb2ZjcGVuaGF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3MjI4ODAsImV4cCI6MjEwMzI5ODg4MH0.hlykCHPzwfK0BK0FUeTXojUEdVnxIxdMmM4LfKpwLpo"; // Settings → API → anon public key
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /* ----------------------------------------------------------------------------
    Auth — simple magic-link sign-in. Call ensureSignedIn() on page load before
    touching weekly_reviews; RLS will reject requests from anonymous sessions.
    ---------------------------------------------------------------------------- */
 async function ensureSignedIn() {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await supabaseClient.auth.getSession();
   if (session) return session;
 
   // No session yet — show a lightweight prompt. Replace with a real modal
@@ -2564,7 +2564,7 @@ async function ensureSignedIn() {
   const email = window.prompt("Sign in with your @laballey.com email:");
   if (!email) return null;
 
-  const { error } = await supabase.auth.signInWithOtp({ email });
+  const { error } = await supabaseClient.auth.signInWithOtp({ email });
   if (error) {
     console.error(error);
     showImportToast("Sign-in failed: " + error.message);
@@ -2580,7 +2580,7 @@ async function ensureSignedIn() {
    Now: pulling every user's saved sessions from Supabase, newest first.
    ---------------------------------------------------------------------------- */
 async function refreshSavedReviewSessionsDropdown() {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from("weekly_reviews")
     .select("id, date_label, created_at")
     .order("created_at", { ascending: false });
@@ -2649,7 +2649,7 @@ async function saveReviewSession() {
     if (input.value !== "") sessionData.ratings.push(input.value);
   });
 
-  const { error } = await supabase.from("weekly_reviews").insert(sessionData);
+  const { error } = await supabaseClient.from("weekly_reviews").insert(sessionData);
   if (error) {
     console.error(error);
     showImportToast("Save failed: " + error.message);
@@ -2669,7 +2669,7 @@ async function saveReviewSession() {
 async function loadSelectedReviewSession(sessionId) {
   if (!sessionId) return;
 
-  const { data: session, error } = await supabase
+  const { data: session, error } = await supabaseClient
     .from("weekly_reviews")
     .select("*")
     .eq("id", sessionId)
@@ -2726,7 +2726,7 @@ async function startNewReviewSession() {
       `Week of ${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
   }
 
-  const { data: latestSessions, error } = await supabase
+  const { data: latestSessions, error } = await supabaseClient
     .from("weekly_reviews")
     .select("*")
     .order("created_at", { ascending: false })
@@ -2758,7 +2758,7 @@ async function startNewReviewSession() {
    after ensureSignedIn().
    ---------------------------------------------------------------------------- */
 function subscribeToWeeklyReviews() {
-  supabase
+  supabaseClient
     .channel("weekly_reviews_changes")
     .on(
       "postgres_changes",
