@@ -2397,7 +2397,8 @@
             if (document.getElementById('kpi-sla')) document.getElementById('kpi-sla').innerText = (latestRow.slaPercent || 0).toFixed(2) + '%';
             if (document.getElementById('kpi-backlog')) document.getElementById('kpi-backlog').innerText = (latestRow.endFriday || 0).toLocaleString();
             if (document.getElementById('kpi-inv-val')) document.getElementById('kpi-inv-val').innerText = '$' + (latestRow.invValuation || 0).toLocaleString();
-
+            if (document.getElementById('kpi-po-val')) document.getElementById('kpi-po-val').innerText = 'Open POs: $' + (latestRow.poValuation || 0).toLocaleString(); const priorRow = dataToUse.length > 1 ? dataToUse[dataToUse.length - 2] : null
+            if (document.getElementById('kpi-avg-shipped')) document.getElementById('kpi-avg-shipped').innerText = 'Prior Wk: ' + (priorRow ? (priorRow.totalShipped || 0).toLocaleString() : '—');
             // Calculate Influx and update DOM elements
             const weekendInflux = (latestRow.startMonday || 0) - (latestRow.endFriday || 0);
             if (document.getElementById('kpi-mon-backlog')) document.getElementById('kpi-mon-backlog').innerText = 'Mon Start: ' + (latestRow.startMonday || 0).toLocaleString();
