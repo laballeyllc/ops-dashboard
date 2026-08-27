@@ -3093,6 +3093,7 @@ function subscribeToLayoutChanges(containerId, storageKey) {
     )
     .subscribe();
 }
+        function getDragAfterElement(container, x, y) { const els = [...container.querySelectorAll('.review-card, .chart-card')].filter(el => !el.classList.contains('dragging')); let closest = { offset: -Infinity, element: null }; els.forEach(child => { const box = child.getBoundingClientRect(); const centerY = box.top + box.height / 2; const centerX = box.left + box.width / 2; const sameRow = Math.abs(y - centerY) < box.height / 2; const offset = sameRow ? (x - centerX) : (y - centerY); if (offset < 0 && offset > closest.offset) { closest = { offset, element: child }; } }); return closest.element; }
         window.onload = function() {ensureSignedIn().then(() => { refreshSavedReviewSessionsDropdown(); subscribeToWeeklyReviews();checkForActiveDraftOnLoad(); subscribeToLayoutChanges('review-agenda-grid', 'laballey_review_card_order');})
             if(typeof initCharts === 'function') initCharts();
             if(typeof updateCalculations === 'function') updateCalculations();
