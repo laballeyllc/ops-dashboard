@@ -667,6 +667,7 @@
                 <div class="flex flex-wrap items-center gap-2">
                     <div class="relative flex items-center">
                         <i class="fa-solid fa-history text-teal-400 absolute left-2.5 text-xs pointer-events-none"></i>
+                        <input type="text" placeholder="Search past sessions..." oninput="filterSessionDropdown(this.value)" class="px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white mb-2 w-full">
                         <select id="review-saved-sessions-select" onchange="loadSelectedReviewSession(this.value)" class="text-xs pl-8 pr-3 py-2 bg-slate-950 border border-teal-500/40 text-teal-300 font-semibold rounded-lg focus:border-teal-400 focus:outline-none cursor-pointer shadow">
                             <option value="">-- Recall Past Review Session --</option>
                         </select>
@@ -676,6 +677,7 @@
                         <i class="fa-solid fa-plus text-teal-400"></i>
                         <span>New Review (Carry Tasks Forward)</span>
                     </button>
+                    <button onclick="showMyOpenTasks()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition" title="See tasks assigned to you across all sessions">My Tasks</button>
 
                     <button onclick="saveReviewSession()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center space-x-1.5 shadow border border-emerald-400/40">
                         <i class="fa-solid fa-floppy-disk"></i>
@@ -703,6 +705,7 @@
                     <label class="block text-slate-400 font-medium mb-1">Attendees / Scribe</label>
                     <input type="text" id="review-attendees-input" placeholder="e.g. John, Sarah, Mike, Alex" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:border-teal-500">
                 </div>
+                <div id="presence-avatars" class="flex -space-x-2 mt-2"></div>
             </div>
 
             <!-- Unified Agenda Grid Container -->
@@ -2558,7 +2561,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
    ---------------------------------------------------------------------------- */
 async function ensureSignedIn() {
   const { data: { session } } = await supabaseClient.auth.getSession();
-  if (session) return session;
+  if (session) { currentUserEmail = session.user.email; return session; }
 
   // No session yet — show a lightweight prompt. Replace with a real modal
   // if you want something nicer than window.prompt.
@@ -3080,7 +3083,137 @@ function subscribeToLayoutChanges(containerId, storageKey) {
     .subscribe();
 }
         function getDragAfterElement(container, x, y) { const els = [...container.querySelectorAll('.review-card, .chart-card')].filter(el => !el.classList.contains('dragging')); let closest = { offset: -Infinity, element: null }; els.forEach(child => { const box = child.getBoundingClientRect(); const centerY = box.top + box.height / 2; const centerX = box.left + box.width / 2; const sameRow = Math.abs(y - centerY) < box.height / 2; const offset = sameRow ? (x - centerX) : (y - centerY); if (offset < 0 && offset > closest.offset) { closest = { offset, element: child }; } }); return closest.element; }
-        window.onload = function() {ensureSignedIn().then(() => { refreshSavedReviewSessionsDropdown(); subscribeToWeeklyReviews();checkForActiveDraftOnLoad(); subscribeToLayoutChanges('review-agenda-grid', 'laballey_review_card_order');})
+        /* ---- Presence ("who's here") ---- */
+let currentUserEmail = null;
+let presenceChannel = null;
+
+function initPresence() {
+  if (presenceChannel) return;
+  presenceChannel = supabaseClient.channel('review-page-presence', {
+    config: { presence: { key: currentUserEmail || ('guest-' + Math.random().toString(36).slice(2)) } }
+  });
+
+  presenceChannel
+    .on('presence', { event: 'sync' }, () => {
+      renderPresenceAvatars(presenceChannel.presenceState());
+    })
+    .subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await presenceChannel.track({ email: currentUserEmail || 'Guest', online_at: new Date().toISOString() });
+      }
+    });
+}
+
+function renderPresenceAvatars(state) {
+  const container = document.getElementById('presence-avatars');
+  if (!container) return;
+  const people = Object.values(state).flat();
+  const uniqueEmails = [...new Set(people.map(p => p.email))];
+  container.innerHTML = uniqueEmails.map(email => {
+    const initials = (email || '??').split('@')[0].slice(0, 2).toUpperCase();
+    return `<div class="w-7 h-7 rounded-full bg-teal-600 text-white text-[10px] flex items-center justify-center font-bold border-2 border-slate-900" title="${email}">${initials}</div>`;
+  }).join('');
+}
+
+/* ---- My Open Tasks ---- */
+async function showMyOpenTasks() {
+  let myName = localStorage.getItem('laballey_my_display_name');
+  if (!myName) {
+    myName = window.prompt("What name do you use in the Owner field for tasks? (e.g. 'Casey' or 'Warehouse Mgr')");
+    if (!myName) return;
+    localStorage.setItem('laballey_my_display_name', myName);
+  }
+
+  const { data, error } = await supabaseClient
+    .from('weekly_reviews')
+    .select('id, date_label, tasks')
+    .order('created_at', { ascending: false })
+    .limit(25);
+
+  if (error) { console.error(error); showImportToast('Could not load tasks.'); return; }
+
+  const myTasks = [];
+  (data || []).forEach(session => {
+    (session.tasks || []).forEach(t => {
+      if (t.owner && t.owner.toLowerCase().includes(myName.toLowerCase()) && t.status !== 'Complete') {
+        myTasks.push({ ...t, sessionLabel: session.date_label });
+      }
+    });
+  });
+
+  renderMyTasksModal(myTasks, myName);
+}
+
+function renderMyTasksModal(tasks, myName) {
+  let modal = document.getElementById('my-tasks-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'my-tasks-modal';
+  modal.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4';
+  modal.innerHTML = `
+    <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-lg w-full max-h-[80vh] overflow-y-auto p-5">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-white font-bold text-lg">My Open Tasks (${myName})</h3>
+        <button onclick="document.getElementById('my-tasks-modal').remove()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-times"></i></button>
+      </div>
+      ${tasks.length === 0 ? '<p class="text-slate-400 text-sm">No open tasks found assigned to you.</p>' : tasks.map(t => `
+        <div class="bg-slate-800 border border-slate-700 rounded-lg p-3 mb-2">
+          <div class="text-white text-sm font-semibold">${t.task}</div>
+          <div class="text-slate-400 text-xs mt-1">From: ${t.sessionLabel} &middot; Due: ${t.dueDate || '&mdash;'} &middot; Status: ${t.status}</div>
+        </div>
+      `).join('')}
+      <button onclick="localStorage.removeItem('laballey_my_display_name'); document.getElementById('my-tasks-modal').remove();" class="mt-3 text-xs text-slate-500 hover:text-slate-300 underline">Change my name</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+/* ---- Confirm before deleting shared items ---- */
+document.addEventListener('click', (e) => {
+  const delBtn = e.target.closest('.rolling-task-card button') || e.target.closest('.agenda-field-group button');
+  if (delBtn) {
+    if (!window.confirm('Remove this item? This removes it for everyone in the shared session.')) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }
+  }
+}, true);
+
+/* ---- Searchable session history ---- */
+let allSavedSessions = [];
+
+async function refreshSavedReviewSessionsDropdown() {
+  const { data, error } = await supabaseClient
+    .from("weekly_reviews")
+    .select("id, date_label, created_at")
+    .eq("is_draft", false)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error(error);
+    showImportToast("Couldn't load past sessions: " + error.message);
+    return;
+  }
+
+  allSavedSessions = data || [];
+  renderSessionDropdownOptions(allSavedSessions);
+}
+
+function renderSessionDropdownOptions(sessions) {
+  const s = document.getElementById("review-saved-sessions-select");
+  if (s) {
+    s.innerHTML =
+      `<option value="">-- Recall Past Review Session --</option>` +
+      sessions.map(item => `<option value="${item.id}">${item.date_label}</option>`).join("");
+  }
+}
+
+function filterSessionDropdown(query) {
+  const q = (query || '').toLowerCase();
+  const filtered = allSavedSessions.filter(s => (s.date_label || '').toLowerCase().includes(q));
+  renderSessionDropdownOptions(filtered);
+}
+        window.onload = function() {ensureSignedIn().then(() => { refreshSavedReviewSessionsDropdown(); subscribeToWeeklyReviews();checkForActiveDraftOnLoad(); subscribeToLayoutChanges('review-agenda-grid', 'laballey_review_card_order');initPresence();})
             if(typeof initCharts === 'function') initCharts();
             if(typeof updateCalculations === 'function') updateCalculations();
             if(typeof enableChartDragAndDrop === 'function') enableChartDragAndDrop();
