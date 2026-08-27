@@ -2824,10 +2824,7 @@ function buildSessionDataObject() {
     sessionData.sections[containerId] = [];
     const c = document.getElementById(containerId);
     if (c) {
-      c.querySelectorAll(".agenda-field-group").forEach(g => {
-        const val = (g.querySelector(".agenda-text-input") || g.querySelector('input[type="text"]'))?.value.trim();
-        if (val) sessionData.sections[containerId].push({ text: val, ageWeeks: parseInt(g.dataset.ageWeeks) || 1 });
-      });
+      c.querySelectorAll(".agenda-field-group").forEach(g => { const val = g.querySelector(".agenda-text-input")?.value.trim(); if (val) { const entry = { text: val, ageWeeks: parseInt(g.dataset.ageWeeks) || 1 }; const ownerEl = g.querySelector(".task-owner-input"); const dateEl = g.querySelector(".task-date-input"); const statusEl = g.querySelector(".task-status-select"); if (ownerEl) entry.owner = ownerEl.value.trim(); if (dateEl) entry.dueDate = dateEl.value; if (statusEl) entry.status = statusEl.value; sessionData.sections[containerId].push(entry); } });
     }
   });
 
@@ -2973,7 +2970,7 @@ async function startNewReviewSession() {lastFinalizedSessionId = null
     });
   }
   if (carriedCount === 0) addRollingTaskCard();
-
+  REVIEW_AGENDA_SECTIONS.forEach(containerId => { const container = document.getElementById(containerId); if (container) { container.innerHTML = ''; let sectionCarried = 0; (latestSession && latestSession.sections && latestSession.sections[containerId] || []).forEach(item => { if (item.text && item.text.trim() && item.status !== 'Complete') { addAgendaField(containerId, { text: item.text.trim(), ageWeeks: (item.ageWeeks || 1) + 1, owner: item.owner, dueDate: item.dueDate, status: item.status }); sectionCarried++; } }); if (sectionCarried === 0) addAgendaField(containerId); } });
   const initialData = buildSessionDataObject();
   initialData.date_label = dateLabel;
   initialData.is_draft = true;
@@ -3212,6 +3209,53 @@ function filterSessionDropdown(query) {
   const q = (query || '').toLowerCase();
   const filtered = allSavedSessions.filter(s => (s.date_label || '').toLowerCase().includes(q));
   renderSessionDropdownOptions(filtered);
+}
+        const FULL_TRACKING_SECTIONS = ['corrective-container', 'issues-container', 'maintenance-container'];
+
+function addAgendaField(containerId, initialData = '') {
+  const container = document.getElementById(containerId); if (!container) return;
+  const isObj = typeof initialData === 'object' && initialData !== null;
+  const text = isObj ? (initialData.text || '') : initialData;
+  const ageWeeks = isObj ? (parseInt(initialData.ageWeeks) || 1) : 1;
+  const useFullFields = FULL_TRACKING_SECTIONS.includes(containerId);
+
+  const fieldGroup = document.createElement('div');
+  fieldGroup.className = "flex items-center space-x-2 agenda-field-group p-1 bg-slate-900/80 rounded-lg border border-slate-800 hover:border-slate-700 transition";
+  fieldGroup.dataset.ageWeeks = ageWeeks;
+
+  const badgeHtml = `<span class="badge-age-tag text-[9px] px-1.5 py-0.5 rounded font-mono font-bold border flex-shrink-0 ${ageWeeks > 1 ? 'bg-purple-500/20 text-purple-300 border-purple-500/40' : 'bg-slate-800 text-slate-400 border-slate-700'}">${ageWeeks > 1 ? `Open ${ageWeeks} Wks` : 'New'}</span>`;
+  const textInputHtml = `<input type="text" value="${text.replace(/"/g, '&quot;')}" placeholder="Enter details..." class="agenda-text-input w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white focus:border-teal-500 font-sans">`;
+  const deleteBtnHtml = `<button onclick="removeAgendaField(this, '${containerId}')" class="text-slate-500 hover:text-red-400 p-1.5 rounded hover:bg-slate-800 text-xs flex-shrink-0"><i class="fa-solid fa-trash-can"></i></button>`;
+
+  if (useFullFields) {
+    const owner = isObj ? (initialData.owner || '') : '';
+    const dueDate = isObj ? (initialData.dueDate || '') : '';
+    const status = isObj ? (initialData.status || 'Open') : 'Open';
+    fieldGroup.innerHTML = `
+      <i class="fa-solid fa-bars text-slate-500 hover:text-amber-400 drag-handle-item text-xs p-1 flex-shrink-0 cursor-grab"></i>
+      ${badgeHtml}
+      ${textInputHtml}
+      <input type="text" value="${owner.replace(/"/g, '&quot;')}" placeholder="Owner" class="task-owner-input w-28 flex-shrink-0 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white focus:border-teal-500 font-sans">
+      <input type="date" value="${dueDate}" class="task-date-input w-32 flex-shrink-0 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white focus:border-teal-500 font-mono">
+      <select onchange="updateTaskBadgeStyle(this)" class="task-status-select text-xs font-bold px-2.5 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none cursor-pointer flex-shrink-0">
+        <option value="Open">Open</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Blocked">Blocked</option>
+        <option value="Complete">Complete</option>
+      </select>
+      ${deleteBtnHtml}`;
+    const statusSelect = fieldGroup.querySelector('.task-status-select');
+    if (statusSelect) { statusSelect.value = status; updateTaskBadgeStyle(statusSelect); }
+  } else {
+    fieldGroup.innerHTML = `
+      <i class="fa-solid fa-bars text-slate-500 hover:text-amber-400 drag-handle-item text-xs p-1 flex-shrink-0 cursor-grab"></i>
+      ${badgeHtml}
+      ${textInputHtml}
+      ${deleteBtnHtml}`;
+  }
+
+  container.appendChild(fieldGroup);
+  enableItemDragAndDrop();
 }
         window.onload = function() {ensureSignedIn().then(() => { refreshSavedReviewSessionsDropdown(); subscribeToWeeklyReviews();checkForActiveDraftOnLoad(); subscribeToLayoutChanges('review-agenda-grid', 'laballey_review_card_order');initPresence();})
             if(typeof initCharts === 'function') initCharts();
