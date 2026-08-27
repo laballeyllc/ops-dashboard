@@ -3045,7 +3045,55 @@ document.addEventListener("click", (e) => {
     setTimeout(scheduleDraftSync, 0);
   }
 });
-        window.onload = function() {ensureSignedIn().then(() => { refreshSavedReviewSessionsDropdown(); subscribeToWeeklyReviews();checkForActiveDraftOnLoad();})
+        async function saveLayoutOrder(containerId, storageKey) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const ids = [];
+  Array.from(container.children).forEach(child => {
+    if (child.dataset && child.dataset.cardId) ids.push(child.dataset.cardId);
+  });
+  const { error } = await supabaseClient
+    .from('dashboard_layout')
+    .upsert({ key: storageKey, value: ids }, { onConflict: 'key' });
+  if (error) console.error(error);
+}
+
+async function restoreLayoutOrder(containerId, storageKey) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const { data, error } = await supabaseClient
+    .from('dashboard_layout')
+    .select('value')
+    .eq('key', storageKey)
+    .maybeSingle();
+  if (error) { console.error(error); return; }
+  if (!data || !data.value) return;
+  try {
+    const ids = data.value;
+    if (!Array.isArray(ids)) return;
+    ids.forEach(cardId => {
+      if (cardId && cardId !== 'null' && cardId !== 'undefined') {
+        const card = container.querySelector(`[data-card-id="${cardId}"]`);
+        if (card) container.appendChild(card);
+      }
+    });
+  } catch (e) { console.error(e); }
+}
+
+function subscribeToLayoutChanges(containerId, storageKey) {
+  supabaseClient
+    .channel('layout_' + storageKey)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'dashboard_layout', filter: `key=eq.${storageKey}` },
+      payload => {
+        if (typeof isDraggingAnyBubble !== 'undefined' && isDraggingAnyBubble) return;
+        restoreLayoutOrder(containerId, storageKey);
+      }
+    )
+    .subscribe();
+}
+        window.onload = function() {ensureSignedIn().then(() => { refreshSavedReviewSessionsDropdown(); subscribeToWeeklyReviews();checkForActiveDraftOnLoad(); subscribeToLayoutChanges('review-agenda-grid', 'laballey_review_card_order');})
             if(typeof initCharts === 'function') initCharts();
             if(typeof updateCalculations === 'function') updateCalculations();
             if(typeof enableChartDragAndDrop === 'function') enableChartDragAndDrop();
