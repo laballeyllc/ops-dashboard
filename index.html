@@ -2783,6 +2783,7 @@ function subscribeToWeeklyReviews() {
    ---------------------------------------------------------------------------- */
 /* ---- Live collaborative draft session logic ---- */
 let currentSessionId = null;
+let lastFinalizedSessionId = null;
 let isApplyingRemoteUpdate = false;
 let draftSyncTimer = null;
 let currentSessionChannel = null;
@@ -2922,7 +2923,7 @@ async function checkForActiveDraftOnLoad() {
   }
 }
 
-async function startNewReviewSession() {
+async function startNewReviewSession() {lastFinalizedSessionId = null
   const { data: existingDrafts, error: draftErr } = await supabaseClient
     .from("weekly_reviews")
     .select("*")
@@ -2986,23 +2987,7 @@ async function startNewReviewSession() {
   showImportToast("Started a new shared review session!");
 }
 
-async function saveReviewSession() {
-  const sessionData = buildSessionDataObject();
-  sessionData.is_draft = false;
-
-  if (!currentSessionId) {
-    const { error } = await supabaseClient.from("weekly_reviews").insert(sessionData);
-    if (error) { console.error(error); showImportToast("Save failed: " + error.message); return; }
-  } else {
-    const { error } = await supabaseClient.from("weekly_reviews").update(sessionData).eq("id", currentSessionId);
-    if (error) { console.error(error); showImportToast("Save failed: " + error.message); return; }
-    unsubscribeFromActiveDraft();
-    currentSessionId = null;
-  }
-
-  await refreshSavedReviewSessionsDropdown();
-  showImportToast("Saved meeting session!");
-}
+async function saveReviewSession() { const sessionData = buildSessionDataObject(); sessionData.is_draft = false; const targetId = currentSessionId || lastFinalizedSessionId; if (!targetId) { const { data: inserted, error } = await supabaseClient.from("weekly_reviews").insert(sessionData).select().single(); if (error) { console.error(error); showImportToast("Save failed: " + error.message); return; } lastFinalizedSessionId = inserted.id; } else { const { error } = await supabaseClient.from("weekly_reviews").update(sessionData).eq("id", targetId); if (error) { console.error(error); showImportToast("Save failed: " + error.message); return; } lastFinalizedSessionId = targetId; if (currentSessionId) { unsubscribeFromActiveDraft(); currentSessionId = null; } } await refreshSavedReviewSessionsDropdown(); showImportToast("Saved meeting session!"); }
 
 async function refreshSavedReviewSessionsDropdown() {
   const { data, error } = await supabaseClient
