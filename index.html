@@ -1578,7 +1578,7 @@
 
         function triggerExecutivePdfExport() {
             showImportToast("Generating Executive Deck PDF...");
-            setTimeout(() => showImportToast("Executive Deck Export Complete!"), 2000);
+            setTimeout(() => showConfirmationToast("Executive Deck Export Complete!"), 2000);
         }
 
         function applyCustomDateRange(e) {
@@ -1859,7 +1859,7 @@
                         document.getElementById('last-sync-time').innerText = `Last synced: ${nowStr}`;
 
                         logSyncDiagnostic(`Successfully synced ${parsed.length} weeks of data!`, "success");
-                        showImportToast(`Synced ${parsed.length} weekly records!`);
+                        showConfirmationToast(`Synced ${parsed.length} weekly records!`);
                         closeLiveSyncModal();
                     } else {
                         throw new Error("No valid rows could be parsed from sheet");
@@ -2096,7 +2096,7 @@
                 const wb = XLSX.read(new Uint8Array(evt.target.result), { type: 'array', cellDates: true, dateNF: 'm/d' }); loadedWorkbookSheets = {};
                 wb.SheetNames.forEach(n => { const parsed = parseSpreadsheetGrid(XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1 })); if (parsed.length > 0) loadedWorkbookSheets[n] = parsed; });
                 const names = Object.keys(loadedWorkbookSheets);
-                if (names.length > 0) { activeSheetName = names[0]; operationsData = loadedWorkbookSheets[names[0]]; updateWorksheetTabDropdown(names); updateCalculations(); showImportToast("File Synchronized Cleanly!"); }
+                if (names.length > 0) { activeSheetName = names[0]; operationsData = loadedWorkbookSheets[names[0]]; updateWorksheetTabDropdown(names); updateCalculations(); showConfirmationToast("File Synchronized Cleanly!"); }
             }; r.readAsArrayBuffer(f);
         }
 
@@ -2479,7 +2479,7 @@
             calculateMeetingRatingAverage(); showImportToast(carriedCount > 0 ? `Carried forward ${carriedCount} entries!` : "Cleared layout.");
         }
 
-        function executeExportMinutesRange(e) { e.preventDefault(); showImportToast("Minutes Range exported successfully."); closeExportRangeModal(); }
+        function executeExportMinutesRange(e) { e.preventDefault(); showConfirmationToast("Minutes Range exported successfully."); closeExportRangeModal(); }
         function initWeeklyOperationsReviewPage() {
             REVIEW_AGENDA_SECTIONS.forEach(containerId => { const c = document.getElementById(containerId); if (c && c.children.length === 0) addAgendaField(containerId); });
             if (document.getElementById('rolling-tasks-container')?.children.length === 0) {
@@ -2561,7 +2561,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
    ---------------------------------------------------------------------------- */
 async function ensureSignedIn() {
   const { data: { session } } = await supabaseClient.auth.getSession();
-  if (session) { currentUserEmail = session.user.email; return session; }
+  if (session) { currentUserEmail = session.user.email; showImportToast('Signed in as ' + currentUserEmail); return session; }
 
   // No session yet — show a lightweight prompt. Replace with a real modal
   // if you want something nicer than window.prompt.
@@ -2987,7 +2987,7 @@ async function startNewReviewSession() {lastFinalizedSessionId = null
   showImportToast("Started a new shared review session!");
 }
 
-async function saveReviewSession() { const sessionData = buildSessionDataObject(); sessionData.is_draft = false; const targetId = currentSessionId || lastFinalizedSessionId; if (!targetId) { const { data: inserted, error } = await supabaseClient.from("weekly_reviews").insert(sessionData).select().single(); if (error) { console.error(error); showImportToast("Save failed: " + error.message); return; } lastFinalizedSessionId = inserted.id; } else { const { error } = await supabaseClient.from("weekly_reviews").update(sessionData).eq("id", targetId); if (error) { console.error(error); showImportToast("Save failed: " + error.message); return; } lastFinalizedSessionId = targetId; if (currentSessionId) { unsubscribeFromActiveDraft(); currentSessionId = null; } } await refreshSavedReviewSessionsDropdown(); showImportToast("Saved meeting session!"); }
+async function saveReviewSession() { const sessionData = buildSessionDataObject(); sessionData.is_draft = false; const targetId = currentSessionId || lastFinalizedSessionId; if (!targetId) { const { data: inserted, error } = await supabaseClient.from("weekly_reviews").insert(sessionData).select().single(); if (error) { console.error(error); showImportToast("Save failed: " + error.message); return; } lastFinalizedSessionId = inserted.id; } else { const { error } = await supabaseClient.from("weekly_reviews").update(sessionData).eq("id", targetId); if (error) { console.error(error); showImportToast("Save failed: " + error.message); return; } lastFinalizedSessionId = targetId; if (currentSessionId) { unsubscribeFromActiveDraft(); currentSessionId = null; } } await refreshSavedReviewSessionsDropdown(); showConfirmationToast("Session Saved!"); }
 
 async function refreshSavedReviewSessionsDropdown() {
   const { data, error } = await supabaseClient
@@ -3166,15 +3166,14 @@ function renderMyTasksModal(tasks, myName) {
 }
 
 /* ---- Confirm before deleting shared items ---- */
-document.addEventListener('click', (e) => {
-  const delBtn = e.target.closest('.rolling-task-card button') || e.target.closest('.agenda-field-group button');
-  if (delBtn) {
-    if (!window.confirm('Remove this item? This removes it for everyone in the shared session.')) {
-      e.stopImmediatePropagation();
-      e.preventDefault();
-    }
+document.addEventListener("click", (e) => {
+  const isTask = e.target.closest(".rolling-task-card button");
+  const isField = e.target.closest(".agenda-field-group button");
+  if (isTask || isField) {
+    setTimeout(scheduleDraftSync, 0);
+    showImportToast(isTask ? 'Task removed.' : 'Field removed.');
   }
-}, true);
+});
 
 /* ---- Searchable session history ---- */
 let allSavedSessions = [];
@@ -3257,6 +3256,40 @@ function addAgendaField(containerId, initialData = '') {
   container.appendChild(fieldGroup);
   enableItemDragAndDrop();
 }
+        function showConfirmationToast(msg) {
+  let el = document.getElementById('confirmation-toast');
+  if (el) el.remove();
+  el = document.createElement('div');
+  el.id = 'confirmation-toast';
+  el.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+  el.style.opacity = '0';
+  el.style.transform = 'scale(0.9)';
+  el.className = 'fixed inset-0 flex items-center justify-center z-[9999] pointer-events-none';
+  el.innerHTML = `
+    <div class="bg-slate-900 border border-emerald-500/50 rounded-2xl shadow-2xl px-8 py-6 flex flex-col items-center gap-3">
+      <div class="w-14 h-14 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center">
+        <i class="fa-solid fa-check text-emerald-400 text-2xl"></i>
+      </div>
+      <div class="text-white font-bold text-base">${msg}</div>
+    </div>
+  `;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => { el.style.opacity = '1'; el.style.transform = 'scale(1)'; });
+  setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transform = 'scale(0.9)';
+    setTimeout(() => el.remove(), 300);
+  }, 1500);
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target.closest('[onclick^="addAgendaField("]')) {
+    setTimeout(() => showImportToast('Field added!'), 0);
+  }
+  if (e.target.closest('[onclick="addRollingTaskCard()"]')) {
+    setTimeout(() => showImportToast('Task added!'), 0);
+  }
+});
         window.onload = function() {ensureSignedIn().then(() => { refreshSavedReviewSessionsDropdown(); subscribeToWeeklyReviews();checkForActiveDraftOnLoad(); subscribeToLayoutChanges('review-agenda-grid', 'laballey_review_card_order');initPresence();})
             if(typeof initCharts === 'function') initCharts();
             if(typeof updateCalculations === 'function') updateCalculations();
