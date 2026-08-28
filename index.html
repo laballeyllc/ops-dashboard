@@ -663,16 +663,15 @@
                         <strong>Full Modular Drag &amp; Drop:</strong> Drag section headers <i class="fa-solid fa-grip-vertical text-amber-400"></i> to move larger cards. Drag handles <i class="fa-solid fa-ellipsis-vertical text-amber-400"></i> on small bubbles to reorder OR swap items across different section cards!
                     </p>
                 </div>
-
+                <div class="mb-2"><input type="text" placeholder="Search past sessions..." oninput="filterSessionDropdown(this.value)" class="px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white w-full"></div>
                 <div class="flex flex-wrap items-center gap-2">
                     <div class="relative flex items-center">
                         <i class="fa-solid fa-history text-teal-400 absolute left-2.5 text-xs pointer-events-none"></i>
-                        <input type="text" placeholder="Search past sessions..." oninput="filterSessionDropdown(this.value)" class="px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white mb-2 w-full">
+                       
                         <select id="review-saved-sessions-select" onchange="loadSelectedReviewSession(this.value)" class="text-xs pl-8 pr-3 py-2 bg-slate-950 border border-teal-500/40 text-teal-300 font-semibold rounded-lg focus:border-teal-400 focus:outline-none cursor-pointer shadow">
                             <option value="">-- Recall Past Review Session --</option>
                         </select>
                     </div>
-
                     <button onclick="startNewReviewSession()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition flex items-center space-x-1.5 shadow" title="Start new meeting session with automatic task carry-over">
                         <i class="fa-solid fa-plus text-teal-400"></i>
                         <span>New Review (Carry Tasks Forward)</span>
