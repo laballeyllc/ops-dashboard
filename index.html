@@ -1859,7 +1859,6 @@
                         document.getElementById('last-sync-time').innerText = `Last synced: ${nowStr}`;
 
                         logSyncDiagnostic(`Successfully synced ${parsed.length} weeks of data!`, "success");
-                        showConfirmationToast(`Synced ${parsed.length} weekly records!`);
                         closeLiveSyncModal();
                     } else {
                         throw new Error("No valid rows could be parsed from sheet");
