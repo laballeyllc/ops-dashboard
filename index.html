@@ -2976,11 +2976,7 @@ async function startNewReviewSession() {lastFinalizedSessionId = null
   initialData.is_draft = true;
 
   const { data: inserted, error: insertErr } = await supabaseClient.from("weekly_reviews").insert(initialData).select().single();
-  if (insertErr) {
-    console.error(insertErr);
-    showImportToast("Couldn't start a shared session: " + insertErr.message);
-    return;
-  }
+  if (insertErr) { if (insertErr.code === '23505') { const { data: raceDrafts } = await supabaseClient.from("weekly_reviews").select("*").eq("is_draft", true).order("created_at", { ascending: false }).limit(1); if (raceDrafts && raceDrafts.length > 0) { currentSessionId = raceDrafts[0].id; populateFormFromSession(raceDrafts[0]); subscribeToActiveDraft(currentSessionId); showImportToast("Someone else just started this session \u2014 joined it."); return; } } console.error(insertErr); showImportToast("Couldn't start a shared session: " + insertErr.message); return; }
 
   currentSessionId = inserted.id;
   subscribeToActiveDraft(currentSessionId);
