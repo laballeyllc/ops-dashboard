@@ -734,7 +734,7 @@
                             <div>
                                 <h4 class="text-base font-bold text-amber-300 flex items-center gap-2">
                                     <i class="fa-solid fa-list-check text-amber-400"></i>
-                                    Rolling Action Items &amp; Task Carry-Over Engine
+                                    Rolling Action Items
                                 </h4>
                                 <p class="text-xs text-slate-400">Assign structured tasks with owner and status. Drag task handles to reorder or move items to other cards.</p>
                             </div>
@@ -979,7 +979,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="flex items-center justify-between mt-3 pt-3 border-t border-slate-800"> <span class="text-[10px] font-semibold text-slate-400">Verification Entries:</span> <button onclick="addAgendaField('training-verification-container')" class="px-2 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded text-[10px] font-semibold transition flex items-center space-x-1"> <i class="fa-solid fa-plus text-[9px]"></i> <span>+ Add Line</span> </button> </div> <div id="training-verification-container" class="space-y-1.5 min-h-[36px] p-1 rounded-lg"></div>
+                    <div class="flex items-center justify-between mt-3 pt-3 border-t border-slate-800"> <span class="text-[10px] font-semibold text-slate-400">Verification Entries:</span> <button onclick="addVerificationEntry()" class="px-2 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded text-[10px] font-semibold transition flex items-center space-x-1"> <i class="fa-solid fa-plus text-[9px]"></i> <span>+ Add Line</span> </button> </div> <div id="training-verification-container" class="space-y-1.5 min-h-[36px] p-1 rounded-lg"></div>
                 </div>
 
                 <!-- QUALITY & CHEMISTRY SECTION -->
@@ -1117,7 +1117,7 @@
                             <button onclick="addRatingField()" class="px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded text-xs font-semibold transition flex items-center space-x-1">
                                 <i class="fa-solid fa-plus text-[10px]"></i>
                                 <span>Add Rating Field</span>
-                            </button>
+                            </button><button onclick="resetMeetingRatings()" class="px-3 py-1 bg-slate-800 hover:bg-red-500/30 text-slate-300 hover:text-red-300 border border-slate-700 hover:border-red-500/40 rounded text-xs font-semibold transition flex items-center space-x-1"> <i class="fa-solid fa-rotate-left text-[10px]"></i> <span>Reset All</span> </button>
                         </div>
 
                         <div id="rating-fields-container" class="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-10 gap-2.5"></div>
@@ -2424,7 +2424,7 @@
             return {
                 manualsAdded: document.getElementById('qc-manuals-added')?.value || '', manualsCompleted: document.getElementById('qc-manuals-completed')?.value || '', manualsTotal: document.getElementById('qc-manuals-total')?.value || '',
                 sdsAdded: document.getElementById('qc-sds-added')?.value || '', sdsRevised: document.getElementById('qc-sds-revised')?.value || '', sdsCompleted: document.getElementById('qc-sds-completed')?.value || '', sdsTotal: document.getElementById('qc-sds-total')?.value || '',
-                newProductsTotal: document.getElementById('qc-new-products-total')?.value || '', trainingSystem: document.getElementById('qc-training-system-select')?.value || 'QMS', trainingSop: document.getElementById('qc-training-sop-num')?.value || '', trainingAssignees: document.getElementById('qc-training-assignees')?.value || '', trainingNotes: document.getElementById('qc-training-notes')?.value || ''
+                newProductsTotal: document.getElementById('qc-new-products-total')?.value || '', trainingSystem: document.getElementById('qc-training-system-select')?.value || 'QMS', trainingSop: document.getElementById('qc-training-sop-num')?.value || '', trainingAssignees: document.getElementById('qc-training-assignees')?.value || '', trainingNotes: document.getElementById('qc-training-notes')?.value || '', trainingVerifications: getVerificationEntries()
             };
         }
 
@@ -2441,6 +2441,7 @@
             if (document.getElementById('qc-training-sop-num')) document.getElementById('qc-training-sop-num').value = data.trainingSop || '';
             if (document.getElementById('qc-training-assignees')) document.getElementById('qc-training-assignees').value = data.trainingAssignees || '';
             if (document.getElementById('qc-training-notes')) document.getElementById('qc-training-notes').value = data.trainingNotes || '';
+            setVerificationEntries(data.trainingVerifications || []);
         }
 
         function refreshSavedReviewSessionsDropdown() { const stored = JSON.parse(localStorage.getItem('laballey_weekly_reviews') || '[]'); const s = document.getElementById('review-saved-sessions-select'); if(s) s.innerHTML = `<option value="">-- Recall Past Review Session --</option>` + stored.map(item => `<option value="${item.id}">${item.dateLabel}</option>`).join(''); }
@@ -2960,7 +2961,7 @@ async function startNewReviewSession() {lastFinalizedSessionId = null
 
   if (latestSession) {
     if (document.getElementById("review-leader-input")) document.getElementById("review-leader-input").value = latestSession.leader || "";
-    if (document.getElementById("review-attendees-input")) document.getElementById("review-attendees-input").value = latestSession.attendees || "";
+    if (document.getElementById("review-attendees-input")) document.getElementById("review-attendees-input").value = latestSession.attendees || "";setQCData(latestSession.qc_data || {});
     (latestSession.tasks || []).forEach(t => {
       if (t.status !== "Complete") {
         addRollingTaskCard({ task: t.task, owner: t.owner, dueDate: t.dueDate, status: t.status, ageWeeks: (t.ageWeeks || 1) + 1 });
@@ -3289,6 +3290,99 @@ document.addEventListener('click', (e) => {
     setTimeout(() => showImportToast('Task added!'), 0);
   }
 });
+        function addVerificationEntry(data = {}) {
+  const container = document.getElementById('training-verification-container');
+  if (!container) return;
+  const isManualAdd = Object.keys(data).length === 0;
+  const row = document.createElement('div');
+  row.className = 'verification-entry-row grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs items-end mt-3 pt-3 border-t border-slate-800';
+  row.innerHTML = `
+    <div>
+      <label class="block text-[10px] text-slate-400 font-medium mb-1">Architecture Base</label>
+      <select class="verification-system-select w-full bg-slate-950 border border-slate-800 rounded p-2 text-white font-semibold focus:border-blue-500 cursor-pointer">
+        <option value="QMS" ${(data.system || 'QMS') === 'QMS' ? 'selected' : ''}>QMS (Quality Management System)</option>
+        <option value="LMS" ${data.system === 'LMS' ? 'selected' : ''}>LMS (Learning Management System)</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-[10px] text-slate-400 font-medium mb-1">SOP # Reference</label>
+      <input type="text" value="${(data.sop || '').replace(/"/g, '&quot;')}" placeholder="e.g. SOP-LAB-014" class="verification-sop-input w-full bg-slate-950 border border-slate-800 rounded p-2 font-mono text-white focus:border-blue-500">
+    </div>
+    <div>
+      <label class="block text-[10px] text-slate-400 font-medium mb-1">Assignee(s) Target</label>
+      <input type="text" value="${(data.assignees || '').replace(/"/g, '&quot;')}" placeholder="e.g. Lab Staff, Packers" class="verification-assignees-input w-full bg-slate-950 border border-slate-800 rounded p-2 text-white focus:border-blue-500">
+    </div>
+    <div class="flex items-end gap-2">
+      <div class="flex-1">
+        <label class="block text-[10px] text-slate-400 font-medium mb-1">Training Notes / Specifics</label>
+        <input type="text" value="${(data.notes || '').replace(/"/g, '&quot;')}" placeholder="Enter notes or training scope here..." class="verification-notes-input w-full bg-slate-950 border border-slate-800 rounded p-2 text-white focus:border-blue-500">
+      </div>
+      <button onclick="removeVerificationEntry(this)" class="text-slate-500 hover:text-red-400 p-2 rounded hover:bg-slate-800 flex-shrink-0"><i class="fa-solid fa-trash-can"></i></button>
+    </div>`;
+  container.appendChild(row);
+  if (isManualAdd) showImportToast('Verification entry added!');
+}
+
+function removeVerificationEntry(btn) {
+  if (!window.confirm('Remove this verification entry? This removes it for everyone in the shared session.')) return;
+  btn.closest('.verification-entry-row').remove();
+  showImportToast('Verification entry removed.');
+  scheduleDraftSync();
+}
+
+function getVerificationEntries() {
+  return Array.from(document.querySelectorAll('#training-verification-container .verification-entry-row')).map(row => ({
+    system: row.querySelector('.verification-system-select')?.value || 'QMS',
+    sop: row.querySelector('.verification-sop-input')?.value.trim() || '',
+    assignees: row.querySelector('.verification-assignees-input')?.value.trim() || '',
+    notes: row.querySelector('.verification-notes-input')?.value.trim() || '',
+  }));
+}
+
+function setVerificationEntries(entries = []) {
+  const container = document.getElementById('training-verification-container');
+  if (!container) return;
+  container.innerHTML = '';
+  entries.forEach(e => addVerificationEntry(e));
+}
+
+document.addEventListener('input', (e) => {
+  if (e.target.matches('.verification-sop-input, .verification-assignees-input, .verification-notes-input')) {
+    scheduleDraftSync();
+  }
+});
+document.addEventListener('change', (e) => {
+  if (e.target.matches('.verification-system-select')) {
+    scheduleDraftSync();
+  }
+});
+
+function addRatingField(val = '') {
+  const container = document.getElementById('rating-fields-container');
+  if (!container) return;
+  const item = document.createElement('div');
+  item.className = "relative";
+  item.innerHTML = `<input type="number" min="1" max="10" step="0.5" value="${val}" placeholder="#${container.children.length + 1}" oninput="calculateMeetingRatingAverage()" class="meeting-rating-input w-full bg-slate-950 border border-slate-800 rounded-lg p-2 pr-5 text-center text-xs text-white font-mono font-bold focus:border-amber-400">
+    <button onclick="removeRatingField(this)" title="Remove this rating field" class="absolute top-0.5 right-0.5 w-3.5 h-3.5 bg-slate-800 hover:bg-red-500 text-slate-400 hover:text-white rounded-full flex items-center justify-center text-[8px] transition"><i class="fa-solid fa-xmark"></i></button>`;
+  container.appendChild(item);
+}
+
+function removeRatingField(btn) {
+  btn.closest('.relative').remove();
+  calculateMeetingRatingAverage();
+  scheduleDraftSync();
+  showImportToast('Rating field removed.');
+}
+
+function resetMeetingRatings() {
+  if (!window.confirm('Reset all rating fields to blank? This clears ratings for everyone in this session.')) return;
+  const container = document.getElementById('rating-fields-container');
+  if (container) container.innerHTML = '';
+  for (let i = 0; i < 10; i++) addRatingField();
+  calculateMeetingRatingAverage();
+  scheduleDraftSync();
+  showImportToast('Ratings reset.');
+}
         window.onload = function() {ensureSignedIn().then(() => { refreshSavedReviewSessionsDropdown(); subscribeToWeeklyReviews();checkForActiveDraftOnLoad(); subscribeToLayoutChanges('review-agenda-grid', 'laballey_review_card_order');initPresence();})
             if(typeof initCharts === 'function') initCharts();
             if(typeof updateCalculations === 'function') updateCalculations();
