@@ -331,6 +331,21 @@
 
             <!-- CORE CHARTS GRID -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" id="core-charts-grid">
+                                <div class="glass-panel p-5 rounded-2xl space-y-3 chart-card relative col-span-1 lg:col-span-2" data-card-id="card-good-news">
+                    <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-grip-vertical text-slate-500 hover:text-teal-400 drag-handle text-sm p-1" title="Drag to reorder card"></i>
+                            <h4 class="text-sm font-bold text-teal-300 flex items-center gap-2">
+                                <i class="fa-solid fa-face-smile text-emerald-400"></i>
+                                Good News (Personal or Business)
+                            </h4>
+                        </div>
+                        <button onclick="addAgendaField('good-news-container')" class="px-2.5 py-1 bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 rounded text-[10px] font-semibold transition flex items-center space-x-1">
+                            <i class="fa-solid fa-plus text-[10px]"></i>
+                            <span>Add Field</span>
+                        </button>
+                    </div>
+                    <div id="good-news-container" class="space-y-2 min-h-[48px] p-1 rounded-xl transition-all"></div>
                 
                 <!-- Dedicated Smooth Line Chart: ABC Rotation Accuracy Trend Overlay -->
                 <div class="glass-panel p-5 rounded-2xl chart-card relative lg:col-span-2 border border-teal-500/40 glow-effect" data-card-id="chart-abc-rotations-overlay">
@@ -747,21 +762,7 @@
                     <div id="rolling-tasks-container" class="space-y-3 min-h-[60px] p-2 rounded-xl transition-all"></div>
                 </div>
 
-                <div class="glass-panel p-5 rounded-2xl space-y-3 review-card relative col-span-1 lg:col-span-2" data-card-id="card-good-news">
-                    <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-                        <div class="flex items-center gap-2">
-                            <i class="fa-solid fa-grip-vertical text-slate-500 hover:text-teal-400 drag-handle text-sm p-1" title="Drag to reorder card"></i>
-                            <h4 class="text-sm font-bold text-teal-300 flex items-center gap-2">
-                                <i class="fa-solid fa-face-smile text-emerald-400"></i>
-                                Good News (Personal or Business)
-                            </h4>
-                        </div>
-                        <button onclick="addAgendaField('good-news-container')" class="px-2.5 py-1 bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 rounded text-[10px] font-semibold transition flex items-center space-x-1">
-                            <i class="fa-solid fa-plus text-[10px]"></i>
-                            <span>Add Field</span>
-                        </button>
-                    </div>
-                    <div id="good-news-container" class="space-y-2 min-h-[48px] p-1 rounded-xl transition-all"></div>
+
                 </div>
 
                 <div class="glass-panel p-5 rounded-2xl space-y-3 review-card relative col-span-1 lg:col-span-2" data-card-id="card-issues">
