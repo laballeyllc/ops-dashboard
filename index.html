@@ -694,11 +694,11 @@
                     </button>
                     <button onclick="showMyOpenTasks()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition" title="See tasks assigned to you across all sessions">My Tasks</button>
 
-                    <button onclick="saveReviewSession()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center space-x-1.5 shadow border border-emerald-400/40">
+                    <button onclick="saveProgress()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center space-x-1.5 shadow border border-emerald-400/40">
                         <i class="fa-solid fa-floppy-disk"></i>
-                        <span>Save Session</span>
+                        <span>Save Progress</span>
                     </button>
-
+                    <button onclick="finalizeReviewSession()" class="px-3.5 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-bold transition flex items-center space-x-1.5 shadow border border-red-400/40" title="End the meeting and permanently close this session"> <i class="fa-solid fa-flag-checkered"></i> <span>End Meeting &amp; Finalize</span> </button>
                     <button onclick="openExportRangeModal()" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold transition flex items-center space-x-1.5 shadow border border-amber-400/40">
                         <i class="fa-solid fa-file-export"></i>
                         <span>Export Minutes Range</span>
@@ -3382,6 +3382,44 @@ function resetMeetingRatings() {
   calculateMeetingRatingAverage();
   scheduleDraftSync();
   showImportToast('Ratings reset.');
+}
+        async function saveProgress() {
+  if (!currentSessionId) {
+    showImportToast("No active session to save — click '+ New Review' first.");
+    return;
+  }
+  const sessionData = buildSessionDataObject();
+  const { error } = await supabaseClient.from("weekly_reviews").update(sessionData).eq("id", currentSessionId);
+  if (error) { console.error(error); showImportToast("Save failed: " + error.message); return; }
+  showImportToast("Progress saved.");
+}
+
+async function finalizeReviewSession() {
+  if (!window.confirm("End this meeting and finalize the session? This closes it for good — no one will be able to keep editing it live after this.")) return;
+
+  const sessionData = buildSessionDataObject();
+  sessionData.is_draft = false;
+  const targetId = currentSessionId || lastFinalizedSessionId;
+
+  if (!targetId) {
+    const { data: inserted, error } = await supabaseClient.from("weekly_reviews").insert(sessionData).select().single();
+    if (error) {
+      if (error.code === '23505') { showImportToast("A saved session with this exact date/label already exists. Please change the Meeting Date / Week Label and try again."); return; }
+      console.error(error); showImportToast("Save failed: " + error.message); return;
+    }
+    lastFinalizedSessionId = inserted.id;
+  } else {
+    const { error } = await supabaseClient.from("weekly_reviews").update(sessionData).eq("id", targetId);
+    if (error) {
+      if (error.code === '23505') { showImportToast("A saved session with this exact date/label already exists. Please change the Meeting Date / Week Label and try again."); return; }
+      console.error(error); showImportToast("Save failed: " + error.message); return;
+    }
+    lastFinalizedSessionId = targetId;
+    if (currentSessionId) { unsubscribeFromActiveDraft(); currentSessionId = null; }
+  }
+
+  await refreshSavedReviewSessionsDropdown();
+  showConfirmationToast("Session Saved!");
 }
         window.onload = function() {ensureSignedIn().then(() => { refreshSavedReviewSessionsDropdown(); subscribeToWeeklyReviews();checkForActiveDraftOnLoad(); subscribeToLayoutChanges('review-agenda-grid', 'laballey_review_card_order');initPresence();})
             if(typeof initCharts === 'function') initCharts();
