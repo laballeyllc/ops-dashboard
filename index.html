@@ -539,6 +539,32 @@
                         </div>
                     </div>
                 </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+                    <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-400 font-medium">Rotation A Target (High Velocity)</span>
+                            <span id="rot-a-target-val" class="font-mono text-amber-400 font-bold">97.0%</span>
+                        </div>
+                        <input type="range" id="rot-a-target-input" min="90" max="100" value="97" step="0.5" oninput="updateCalculations()" class="w-full accent-amber-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                        <p class="text-[10px] text-slate-500 mt-1">ABC Rotation Accuracy Trend goal for Rotation A</p>
+                    </div>
+                    <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-400 font-medium">Rotation B Target (Medium Velocity)</span>
+                            <span id="rot-b-target-val" class="font-mono text-sky-400 font-bold">2.0%</span>
+                        </div>
+                        <input type="range" id="rot-b-target-input" min="0" max="10" value="2" step="0.5" oninput="updateCalculations()" class="w-full accent-sky-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                        <p class="text-[10px] text-slate-500 mt-1">ABC Rotation Accuracy Trend goal for Rotation B</p>
+                    </div>
+                    <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-400 font-medium">Rotation C Target (Low Velocity/Bulk)</span>
+                            <span id="rot-c-target-val" class="font-mono text-purple-400 font-bold">1.0%</span>
+                        </div>
+                        <input type="range" id="rot-c-target-input" min="0" max="10" value="1" step="0.5" oninput="updateCalculations()" class="w-full accent-purple-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                        <p class="text-[10px] text-slate-500 mt-1">ABC Rotation Accuracy Trend goal for Rotation C</p>
+                    </div>
+                </div>
             </section>
 
             <!-- OPERATIONAL HEALTH & ANOMALY ALERT CENTER -->
@@ -933,12 +959,20 @@
                         </div>
                     </div>
 
-                    <!-- Full-Width Training Details Row -->
-                    <div class="bg-slate-900/90 p-4 rounded-xl border border-blue-500/30 space-y-3 mt-4">
-                        <span class="font-bold text-xs text-blue-300 flex items-center gap-1.5 pb-1 border-b border-slate-800">
-                            <i class="fa-solid fa-clipboard-list text-blue-400"></i>
-                            Training System Verification Registry
-                        </span>
+                  <span class="text-[11px] bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2.5 py-0.5 rounded-full font-semibold">4 Departments (Plan &amp; Achievements)</span>
+                    </div>
+                                    <!-- Full-Width Training Details Row (moved to top) -->
+                    <div class="bg-slate-900/90 p-4 rounded-xl border border-blue-500/30 space-y-3">
+                        <div class="flex items-center justify-between pb-1 border-b border-slate-800">
+                            <span class="font-bold text-xs text-blue-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-clipboard-list text-blue-400"></i>
+                                Training System Verification Registry
+                            </span>
+                            <button onclick="addVerificationEntry()" class="px-2 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded text-[10px] font-semibold transition flex items-center space-x-1 flex-shrink-0">
+                                <i class="fa-solid fa-plus text-[9px]"></i>
+                                <span>+ Add Line</span>
+                            </button>
+                        </div>
                         <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
                             <div>
                                 <label class="block text-[10px] text-slate-400 font-medium mb-1">Architecture Base</label>
@@ -960,8 +994,8 @@
                                 <input type="text" id="qc-training-notes" placeholder="Enter notes or training scope here..." class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white focus:border-blue-500">
                             </div>
                         </div>
+                        <div id="training-verification-container" class="space-y-1.5"></div>
                     </div>
-                    <div class="flex items-center justify-between mt-3 pt-3 border-t border-slate-800"> <span class="text-[10px] font-semibold text-slate-400">Verification Entries:</span> <button onclick="addVerificationEntry()" class="px-2 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded text-[10px] font-semibold transition flex items-center space-x-1"> <i class="fa-solid fa-plus text-[9px]"></i> <span>+ Add Line</span> </button> </div> <div id="training-verification-container" class="space-y-1.5 min-h-[36px] p-1 rounded-lg"></div>
                 </div>
 
                 <!-- QUALITY & CHEMISTRY SECTION -->
@@ -1000,12 +1034,7 @@
                                     <input type="number" id="qc-manuals-total" placeholder="0" class="w-full bg-slate-950 border border-slate-800 rounded p-1.5 text-center font-mono text-white font-bold focus:border-teal-500">
                                 </div>
                             </div>
-                            <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
-                                <span class="text-[11px] text-slate-400 font-medium">QMS Tracker:</span>
-                                <a href="#" id="qc-qms-tracker-link" onclick="event.preventDefault(); showImportToast('Opening QMS Tracker link...');" class="text-teal-400 hover:text-teal-300 font-semibold text-[11px] underline flex items-center gap-1">
-                                    Top PM Tracker <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
-                                </a>
-                            </div>
+                            
                         </div>
 
                         <!-- 7. SDS Website Requests -->
@@ -1456,7 +1485,7 @@
             'training-shipping-plan-container', 'training-shipping-achievements-container',
             'training-fulfillment-plan-container', 'training-fulfillment-achievements-container',
             'training-quality-plan-container', 'training-quality-achievements-container',
-            'qc-new-products-container', 'training-verification-container'
+            'qc-new-products-container'
         ];
 
         var customMetricDefinitions = [
@@ -1474,9 +1503,9 @@
             { key: 'supplierCount', label: 'Supplier Count', type: 'number' },
             { key: 'buildsCompleted', label: 'Builds Completed', type: 'number' },
             { key: 'unitsBuilt', label: 'Units Built', type: 'number' },
-            { key: 'custom_rot_a', label: 'Rotation A (High Velocity - Target ≥99%)', type: 'percentage' },
-            { key: 'custom_rot_b', label: 'Rotation B (Medium Velocity - Target ≥97%)', type: 'percentage' },
-            { key: 'custom_rot_c', label: 'Rotation C (Low Velocity/Bulk - Target ≥95%)', type: 'percentage' },
+            { key: 'custom_rot_a', label: 'Rotation A (High Velocity - Target ≥97%)', type: 'percentage' },
+            { key: 'custom_rot_b', label: 'Rotation B (Medium Velocity - Target ≥2%)', type: 'percentage' },
+            { key: 'custom_rot_c', label: 'Rotation C (Low Velocity/Bulk - Target ≥1%)', type: 'percentage' },
             { key: 'custom_inv_row1', label: 'ROW 1', type: 'percentage' },
             { key: 'custom_inv_row2', label: 'ROW 2', type: 'percentage' },
             { key: 'custom_inv_row3', label: 'ROW 3', type: 'percentage' },
@@ -1902,9 +1931,9 @@
                 { key: 'supplierCount', label: 'Supplier Count', type: 'number' },
                 { key: 'buildsCompleted', label: 'Builds Completed', type: 'number' },
                 { key: 'unitsBuilt', label: 'Units Built', type: 'number' },
-                { key: 'custom_rot_a', label: 'Rotation A (High Velocity - Target ≥99%)', type: 'percentage' },
-                { key: 'custom_rot_b', label: 'Rotation B (Medium Velocity - Target ≥97%)', type: 'percentage' },
-                { key: 'custom_rot_c', label: 'Rotation C (Low Velocity/Bulk - Target ≥95%)', type: 'percentage' }
+                { key: 'custom_rot_a', label: 'Rotation A (High Velocity - Target ≥97%)', type: 'percentage' },
+                { key: 'custom_rot_b', label: 'Rotation B (Medium Velocity - Target ≥2%)', type: 'percentage' },
+                { key: 'custom_rot_c', label: 'Rotation C (Low Velocity/Bulk - Target ≥1%)', type: 'percentage' }
             ];
         }
 
@@ -2084,6 +2113,7 @@
         function initCharts() {
             const dataToUse = getFilteredData(); const weeks = dataToUse.map(d => d.week);
             const slaGoal = parseFloat(document.getElementById('sla-target-input')?.value) || 90; const fridayCap = parseFloat(document.getElementById('friday-cap-input')?.value) || 80;
+            const rotATargetInit = parseFloat(document.getElementById('rot-a-target-input')?.value) || 97; const rotBTargetInit = parseFloat(document.getElementById('rot-b-target-input')?.value) || 2; const rotCTargetInit = parseFloat(document.getElementById('rot-c-target-input')?.value) || 1;
             if (shippedSlaChart) { shippedSlaChart.destroy(); shippedSlaChart = null; }
             if (backlogChart) { backlogChart.destroy(); backlogChart = null; }
             if (openPoChart) { openPoChart.destroy(); openPoChart = null; }
@@ -2098,9 +2128,9 @@
                     data: {
                         labels: weeks,
                         datasets: [
-                            { label: 'Rotation A (High Velocity - Target ≥99%)', data: dataToUse.map(d => d.custom_rot_a !== undefined && d.custom_rot_a !== 'N/C' ? d.custom_rot_a : null), borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', borderWidth: 3, pointRadius: 5, tension: 0.4, spanGaps: true },
-                            { label: 'Rotation B (Medium Velocity - Target ≥97%)', data: dataToUse.map(d => d.custom_rot_b !== undefined && d.custom_rot_b !== 'N/C' ? d.custom_rot_b : null), borderColor: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', borderWidth: 3, pointRadius: 5, tension: 0.4, spanGaps: true },
-                            { label: 'Rotation C (Low Velocity/Bulk - Target ≥95%)', data: dataToUse.map(d => d.custom_rot_c !== undefined && d.custom_rot_c !== 'N/C' ? d.custom_rot_c : null), borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.1)', borderWidth: 3, pointRadius: 5, tension: 0.4, spanGaps: true }
+                            { label: `Rotation A (High Velocity - Target ${rotATargetInit.toFixed(1)}%)`, data: dataToUse.map(d => d.custom_rot_a !== undefined && d.custom_rot_a !== 'N/C' ? d.custom_rot_a : null), borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', borderWidth: 3, pointRadius: 5, tension: 0.4, spanGaps: true },
+                            { label: `Rotation B (Medium Velocity - Target ${rotBTargetInit.toFixed(1)}%)`, data: dataToUse.map(d => d.custom_rot_b !== undefined && d.custom_rot_b !== 'N/C' ? d.custom_rot_b : null), borderColor: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', borderWidth: 3, pointRadius: 5, tension: 0.4, spanGaps: true },
+                            { label: `Rotation C (Low Velocity/Bulk - Target ${rotCTargetInit.toFixed(1)}%)`, data: dataToUse.map(d => d.custom_rot_c !== undefined && d.custom_rot_c !== 'N/C' ? d.custom_rot_c : null), borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.1)', borderWidth: 3, pointRadius: 5, tension: 0.4, spanGaps: true }
                         ]
                     },
                     options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(51, 65, 85, 0.3)' } }, y: { min: 0, max: 100, ticks: { stepSize: 10, color: '#38bdf8', callback: v => v + '%' }, grid: { color: 'rgba(51, 65, 85, 0.3)' }, title: { display: true, text: 'Accuracy Score (%)', color: '#38bdf8' } } }, plugins: { legend: { labels: { color: '#cbd5e1' } } } }
@@ -2397,8 +2427,16 @@
             if (openPoChart) { openPoChart.data.labels = weeks; openPoChart.data.datasets[0].data = dataToUse.map(d => d.poValuation || 0); openPoChart.data.datasets[1].data = dataToUse.map(d => d.supplierCount || 0); openPoChart.data.datasets[2].data = dataToUse.map(d => d.poQty || 0); openPoChart.update(); }
             if (buildsChart) { buildsChart.data.labels = weeks; buildsChart.data.datasets[0].data = dataToUse.map(d => d.buildsCompleted || 0); buildsChart.data.datasets[1].data = dataToUse.map(d => d.unitsBuilt || 0); buildsChart.update(); }
             if (inventoryChart) { inventoryChart.data.labels = weeks; inventoryChart.data.datasets[0].data = dataToUse.map(d => d.invValuation || 0); inventoryChart.data.datasets[1].data = dataToUse.map(d => d.stockUnits || 0); inventoryChart.data.datasets[2].data = dataToUse.map(d => d.reservationsUnits || 0); inventoryChart.data.datasets[3].data = dataToUse.map(d => d.unitsOnPo || 0); inventoryChart.update(); }
-            if (abcRotationOverlayChart) { abcRotationOverlayChart.data.labels = weeks; abcRotationOverlayChart.data.datasets[0].data = dataToUse.map(d => d.custom_rot_a !== undefined && d.custom_rot_a !== 'N/C' ? d.custom_rot_a : null); abcRotationOverlayChart.data.datasets[1].data = dataToUse.map(d => d.custom_rot_b !== undefined && d.custom_rot_b !== 'N/C' ? d.custom_rot_b : null); abcRotationOverlayChart.data.datasets[2].data = dataToUse.map(d => d.custom_rot_c !== undefined && d.custom_rot_c !== 'N/C' ? d.custom_rot_c : null); abcRotationOverlayChart.update(); }
-
+const rotAInputEl = document.getElementById('rot-a-target-input'); const rotBInputEl = document.getElementById('rot-b-target-input'); const rotCInputEl = document.getElementById('rot-c-target-input');
+const rotATarget = rotAInputEl ? (parseFloat(rotAInputEl.value) || 97) : 97; const rotBTarget = rotBInputEl ? (parseFloat(rotBInputEl.value) || 2) : 2; const rotCTarget = rotCInputEl ? (parseFloat(rotCInputEl.value) || 1) : 1;
+if (document.getElementById('rot-a-target-val')) document.getElementById('rot-a-target-val').innerText = rotATarget.toFixed(1) + '%';
+if (document.getElementById('rot-b-target-val')) document.getElementById('rot-b-target-val').innerText = rotBTarget.toFixed(1) + '%';
+if (document.getElementById('rot-c-target-val')) document.getElementById('rot-c-target-val').innerText = rotCTarget.toFixed(1) + '%';
+const rotALabel = `Rotation A (High Velocity - Target ${rotATarget.toFixed(1)}%)`; const rotBLabel = `Rotation B (Medium Velocity - Target ${rotBTarget.toFixed(1)}%)`; const rotCLabel = `Rotation C (Low Velocity/Bulk - Target ${rotCTarget.toFixed(1)}%)`;
+const rotADef = customMetricDefinitions.find(m => m.key === 'custom_rot_a'); if (rotADef) rotADef.label = rotALabel;
+const rotBDef = customMetricDefinitions.find(m => m.key === 'custom_rot_b'); if (rotBDef) rotBDef.label = rotBLabel;
+const rotCDef = customMetricDefinitions.find(m => m.key === 'custom_rot_c'); if (rotCDef) rotCDef.label = rotCLabel;
+if (abcRotationOverlayChart) { abcRotationOverlayChart.data.labels = weeks; abcRotationOverlayChart.data.datasets[0].data = dataToUse.map(d => d.custom_rot_a !== undefined && d.custom_rot_a !== 'N/C' ? d.custom_rot_a : null); abcRotationOverlayChart.data.datasets[0].label = rotALabel; abcRotationOverlayChart.data.datasets[1].data = dataToUse.map(d => d.custom_rot_b !== undefined && d.custom_rot_b !== 'N/C' ? d.custom_rot_b : null); abcRotationOverlayChart.data.datasets[1].label = rotBLabel; abcRotationOverlayChart.data.datasets[2].data = dataToUse.map(d => d.custom_rot_c !== undefined && d.custom_rot_c !== 'N/C' ? d.custom_rot_c : null); abcRotationOverlayChart.data.datasets[2].label = rotCLabel; abcRotationOverlayChart.update(); }
             updateDynamicCharts(); renderDataTable(); enableChartDragAndDrop(); enableReviewCardDragAndDrop(); enableItemDragAndDrop(); updateSourceDiagnosticBar(); runOperationalAnomalyScanner(dataToUse, slaGoal, fridayCap);
         }
 
