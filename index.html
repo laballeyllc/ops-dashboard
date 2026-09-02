@@ -136,6 +136,15 @@
 </head>
 <body class="h-full flex flex-col font-sans antialiased text-slate-200 bg-slate-950">
 
+    <!-- Global toast: fixed so it's visible no matter which tab is active -->
+    <div id="import-toast" class="hidden fixed bottom-5 right-5 max-w-sm p-3 bg-emerald-950/95 border border-emerald-500/50 rounded-xl text-emerald-300 text-xs flex items-center justify-between z-[9999] shadow-2xl no-print">
+        <div class="flex items-center space-x-2">
+            <i class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+            <span id="import-toast-msg">Successfully imported data!</span>
+        </div>
+        <button onclick="document.getElementById('import-toast').classList.add('hidden')" class="text-slate-400 hover:text-white ml-3"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
     <!-- HEADER -->
     <header class="bg-slate-900 border-b border-teal-500/30 sticky top-0 z-50 shadow-lg no-print">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
@@ -597,14 +606,6 @@
 
         <!-- DATA SHEET TAB -->
         <div id="content-data" class="hidden space-y-4">
-            <div id="import-toast" class="hidden p-3 bg-emerald-950/80 border border-emerald-500/50 rounded-xl text-emerald-300 text-xs flex items-center justify-between z-50">
-                <div class="flex items-center space-x-2">
-                    <i class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
-                    <span id="import-toast-msg">Successfully imported data!</span>
-                </div>
-                <button onclick="document.getElementById('import-toast').classList.add('hidden')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-
             <div id="source-diagnostic-bar" class="p-3 bg-slate-900 border border-teal-500/40 rounded-xl text-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow">
                 <div class="flex items-center space-x-3">
                     <div class="p-2 bg-teal-500/20 text-teal-300 rounded-lg">
@@ -711,6 +712,13 @@
                         <i class="fa-solid fa-file-export"></i>
                         <span>Export Minutes Range</span>
                     </button>
+                </div>
+                <div id="active-draft-banner" class="hidden mt-2.5 px-3 py-2 bg-emerald-950/50 border border-emerald-500/30 rounded-lg text-xs text-emerald-300 flex flex-wrap items-center justify-between gap-2">
+                    <span class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"></span>
+                        <span id="active-draft-banner-text">Currently editing an in-progress session — not yet finalized. It won't appear in "Recall Past Review Session" until you click "End Meeting &amp; Finalize."</span>
+                    </span>
+                    <span id="last-saved-indicator" class="text-slate-400 font-mono flex-shrink-0"></span>
                 </div>
             </div>
 
@@ -2789,8 +2797,17 @@ function subscribeToWeeklyReviews() {
       "postgres_changes",
       { event: "*", schema: "public", table: "weekly_reviews" },
       payload => {
+        // Only notify for sessions that just became finalized (is_draft false).
+        // Routine draft auto-saves (every ~600ms while someone types) fire this
+        // same event constantly and are already reflected live via the
+        // per-draft subscribeToActiveDraft() channel, so they're ignored here
+        // to avoid a toast on every keystroke during a live shared session.
+        const justFinalized =
+          (payload.eventType === "INSERT" && payload.new && payload.new.is_draft === false) ||
+          (payload.eventType === "UPDATE" && payload.new && payload.new.is_draft === false && payload.old && payload.old.is_draft !== false);
+        if (!justFinalized) return;
         refreshSavedReviewSessionsDropdown();
-        showImportToast("Weekly reviews updated by a teammate.");
+        showImportToast("A teammate finalized a new review session.");
       }
     )
     .subscribe();
@@ -2811,6 +2828,25 @@ let lastFinalizedSessionId = null;
 let isApplyingRemoteUpdate = false;
 let draftSyncTimer = null;
 let currentSessionChannel = null;
+
+function setActiveDraftBanner(dateLabel) {
+  const banner = document.getElementById('active-draft-banner');
+  const text = document.getElementById('active-draft-banner-text');
+  if (!banner || !text) return;
+  if (dateLabel) {
+    text.innerText = `Currently editing: ${dateLabel} (in progress — not yet finalized). It won't appear in "Recall Past Review Session" until you click "End Meeting & Finalize."`;
+    banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
+    const savedEl = document.getElementById('last-saved-indicator');
+    if (savedEl) savedEl.innerText = '';
+  }
+}
+
+function markDraftSaved() {
+  const el = document.getElementById('last-saved-indicator');
+  if (el) el.innerText = 'Last saved ' + new Date().toLocaleTimeString();
+}
 
 function buildSessionDataObject() {
   const dateLabel =
@@ -2902,7 +2938,8 @@ async function syncDraftToServer() {
   if (!currentSessionId) return;
   const sessionData = buildSessionDataObject();
   const { error } = await supabaseClient.from("weekly_reviews").update(sessionData).eq("id", currentSessionId);
-  if (error) console.error(error);
+  if (error) { console.error(error); return; }
+  markDraftSaved();
 }
 
 function subscribeToActiveDraft(sessionId) {
@@ -2940,6 +2977,7 @@ async function checkForActiveDraftOnLoad() {
     currentSessionId = data[0].id;
     populateFormFromSession(data[0]);
     subscribeToActiveDraft(currentSessionId);
+    setActiveDraftBanner(data[0].date_label);
     showImportToast("Joined an in-progress review session.");
   }
 }
@@ -2958,6 +2996,7 @@ async function startNewReviewSession() {lastFinalizedSessionId = null
     currentSessionId = existingDrafts[0].id;
     populateFormFromSession(existingDrafts[0]);
     subscribeToActiveDraft(currentSessionId);
+    setActiveDraftBanner(existingDrafts[0].date_label);
     showImportToast("Joined the in-progress review session.");
     return;
   }
@@ -2997,10 +3036,11 @@ async function startNewReviewSession() {lastFinalizedSessionId = null
   initialData.is_draft = true;
 
   const { data: inserted, error: insertErr } = await supabaseClient.from("weekly_reviews").insert(initialData).select().single();
-  if (insertErr) { if (insertErr.code === '23505') { const { data: raceDrafts } = await supabaseClient.from("weekly_reviews").select("*").eq("is_draft", true).order("created_at", { ascending: false }).limit(1); if (raceDrafts && raceDrafts.length > 0) { currentSessionId = raceDrafts[0].id; populateFormFromSession(raceDrafts[0]); subscribeToActiveDraft(currentSessionId); showImportToast("Someone else just started this session \u2014 joined it."); return; } } console.error(insertErr); showImportToast("Couldn't start a shared session: " + insertErr.message); return; }
+  if (insertErr) { if (insertErr.code === '23505') { const { data: raceDrafts } = await supabaseClient.from("weekly_reviews").select("*").eq("is_draft", true).order("created_at", { ascending: false }).limit(1); if (raceDrafts && raceDrafts.length > 0) { currentSessionId = raceDrafts[0].id; populateFormFromSession(raceDrafts[0]); subscribeToActiveDraft(currentSessionId); setActiveDraftBanner(raceDrafts[0].date_label); showImportToast("Someone else just started this session \u2014 joined it."); return; } } console.error(insertErr); showImportToast("Couldn't start a shared session: " + insertErr.message); return; }
 
   currentSessionId = inserted.id;
   subscribeToActiveDraft(currentSessionId);
+  setActiveDraftBanner(dateLabel);
   showImportToast("Started a new shared review session!");
 }
 
@@ -3408,6 +3448,7 @@ function resetMeetingRatings() {
   const sessionData = buildSessionDataObject();
   const { error } = await supabaseClient.from("weekly_reviews").update(sessionData).eq("id", currentSessionId);
   if (error) { console.error(error); showImportToast("Save failed: " + error.message); return; }
+  markDraftSaved();
   showImportToast("Progress saved.");
 }
 
@@ -3432,7 +3473,7 @@ async function finalizeReviewSession() {
       console.error(error); showImportToast("Save failed: " + error.message); return;
     }
     lastFinalizedSessionId = targetId;
-    if (currentSessionId) { unsubscribeFromActiveDraft(); currentSessionId = null; }
+    if (currentSessionId) { unsubscribeFromActiveDraft(); currentSessionId = null; setActiveDraftBanner(null); }
   }
 
   await refreshSavedReviewSessionsDropdown();
