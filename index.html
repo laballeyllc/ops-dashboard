@@ -114,6 +114,11 @@
             cursor: grabbing;
         }
 
+        .recall-locked {
+            opacity: 0.65;
+            pointer-events: none;
+        }
+
         @media print {
             body {
                 background: white !important;
@@ -677,50 +682,66 @@
 
         <!-- WEEKLY OPERATIONS REVIEW TAB -->
         <div id="content-review" class="hidden space-y-6">
-            <div class="glass-panel p-5 rounded-2xl flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 border border-amber-500/30 glow-effect">
-                <div class="space-y-1">
-                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                        <i class="fa-solid fa-clipboard-check text-amber-400 text-xl"></i>
-                        Weekly Operations Meeting Review &amp; Rolling Tasks
-                    </h3>
-                    <p class="text-xs text-slate-400">
-                        <i class="fa-solid fa-arrows-up-down-left-right text-teal-400"></i> 
-                        <strong>Full Modular Drag &amp; Drop:</strong> Drag section headers <i class="fa-solid fa-grip-vertical text-amber-400"></i> to move larger cards. Drag handles <i class="fa-solid fa-ellipsis-vertical text-amber-400"></i> on small bubbles to reorder OR swap items across different section cards!
-                    </p>
-                </div>
-                <div class="mb-2"><input type="text" placeholder="Search past sessions..." oninput="filterSessionDropdown(this.value)" class="px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white w-full"></div>
+            <div class="glass-panel p-5 rounded-2xl border border-amber-500/30 glow-effect space-y-3">
+                <!-- Row 1: Session selection -->
                 <div class="flex flex-wrap items-center gap-2">
                     <div class="relative flex items-center">
                         <i class="fa-solid fa-history text-teal-400 absolute left-2.5 text-xs pointer-events-none"></i>
-                       
                         <select id="review-saved-sessions-select" onchange="loadSelectedReviewSession(this.value)" class="text-xs pl-8 pr-3 py-2 bg-slate-950 border border-teal-500/40 text-teal-300 font-semibold rounded-lg focus:border-teal-400 focus:outline-none cursor-pointer shadow">
                             <option value="">-- Recall Past Review Session --</option>
                         </select>
                     </div>
+                    <input type="text" placeholder="Search past sessions..." oninput="filterSessionDropdown(this.value)" class="px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white w-full sm:w-52">
                     <button onclick="startNewReviewSession()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition flex items-center space-x-1.5 shadow" title="Start new meeting session with automatic task carry-over">
                         <i class="fa-solid fa-plus text-teal-400"></i>
                         <span>New Review (Carry Tasks Forward)</span>
                     </button>
-                    <button onclick="showMyOpenTasks()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition" title="See tasks assigned to you across all sessions">My Tasks</button>
 
-                    <button onclick="saveProgress()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center space-x-1.5 shadow border border-emerald-400/40">
+                    <div class="w-px h-6 bg-slate-700 mx-1 hidden sm:block"></div>
+
+                    <button id="unlock-recall-btn" onclick="unlockRecalledSession()" class="hidden px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold transition flex items-center space-x-1.5 shadow border border-amber-400/40" title="Unlock this finalized session to make corrections">
+                        <i class="fa-solid fa-unlock"></i>
+                        <span>Unlock &amp; Edit</span>
+                    </button>
+                    <button id="save-lock-recall-btn" onclick="saveAndLockRecalledSession()" class="hidden px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center space-x-1.5 shadow border border-emerald-400/40">
+                        <i class="fa-solid fa-lock"></i>
+                        <span>Save &amp; Lock</span>
+                    </button>
+                    <button id="exit-recall-btn" onclick="exitRecallView()" class="hidden px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg text-xs font-semibold transition flex items-center space-x-1.5" title="Return to your live session">
+                        <i class="fa-solid fa-xmark"></i>
+                        <span>Exit View</span>
+                    </button>
+                </div>
+
+                <!-- Row 2: Actions on the current session -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="showMyOpenTasks()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition" title="See tasks assigned to you across all sessions">My Tasks</button>
+                    <button id="save-progress-btn" onclick="saveProgress()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center space-x-1.5 shadow border border-emerald-400/40">
                         <i class="fa-solid fa-floppy-disk"></i>
                         <span>Save Progress</span>
                     </button>
-                    <button onclick="finalizeReviewSession()" class="px-3.5 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-bold transition flex items-center space-x-1.5 shadow border border-red-400/40" title="End the meeting and permanently close this session"> <i class="fa-solid fa-flag-checkered"></i> <span>End Meeting &amp; Finalize</span> </button>
+                    <button id="finalize-btn" onclick="finalizeReviewSession()" class="px-3.5 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-bold transition flex items-center space-x-1.5 shadow border border-red-400/40" title="End the meeting and permanently close this session"> <i class="fa-solid fa-flag-checkered"></i> <span>End Meeting &amp; Finalize</span> </button>
                     <button onclick="openExportRangeModal()" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold transition flex items-center space-x-1.5 shadow border border-amber-400/40">
                         <i class="fa-solid fa-file-export"></i>
                         <span>Export Minutes Range</span>
                     </button>
                 </div>
-                <div id="active-draft-banner" class="hidden mt-2.5 px-3 py-2 bg-emerald-950/50 border border-emerald-500/30 rounded-lg text-xs text-emerald-300 flex flex-wrap items-center justify-between gap-2">
+
+                <!-- Row 3: Status -->
+                <div id="active-draft-banner" class="hidden px-3 py-2 bg-emerald-950/50 border border-emerald-500/30 rounded-lg text-xs text-emerald-300 flex flex-wrap items-center justify-between gap-2">
                     <span class="flex items-center gap-2">
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"></span>
                         <span id="active-draft-banner-text">Currently editing an in-progress session — not yet finalized. It won't appear in "Recall Past Review Session" until you click "End Meeting &amp; Finalize."</span>
                     </span>
                     <span id="last-saved-indicator" class="text-slate-400 font-mono flex-shrink-0"></span>
                 </div>
+                <div id="recall-view-banner" class="hidden px-3 py-2 bg-amber-950/50 border border-amber-500/30 rounded-lg text-xs text-amber-300 flex items-center gap-2">
+                    <i class="fa-solid fa-lock flex-shrink-0"></i>
+                    <span id="recall-view-banner-text">Viewing a finalized session — read-only.</span>
+                </div>
             </div>
+
+            <div id="review-lockable-content" class="space-y-6">
 
             <!-- Review Session Metadata -->
             <div class="glass-panel p-4 rounded-2xl grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
@@ -1141,6 +1162,7 @@
                     </div>
                 </div>
 
+            </div>
             </div>
         </div>
     </main>
@@ -2744,6 +2766,7 @@ async function loadSelectedReviewSession(sessionId) {
   }
 
   calculateMeetingRatingAverage();
+  enterRecallLockedView(session);
   showImportToast("Loaded session!");
 }
 
@@ -2824,6 +2847,7 @@ function subscribeToWeeklyReviews() {
    ---------------------------------------------------------------------------- */
 /* ---- Live collaborative draft session logic ---- */
 let currentSessionId = null;
+let recalledSessionId = null;
 let lastFinalizedSessionId = null;
 let isApplyingRemoteUpdate = false;
 let draftSyncTimer = null;
@@ -2846,6 +2870,111 @@ function setActiveDraftBanner(dateLabel) {
 function markDraftSaved() {
   const el = document.getElementById('last-saved-indicator');
   if (el) el.innerText = 'Last saved ' + new Date().toLocaleTimeString();
+}
+
+/* ---- Recall (finalized-session) locked-view logic ---- */
+function setLockableFieldsDisabled(disabled) {
+  const wrapper = document.getElementById('review-lockable-content');
+  if (!wrapper) return;
+  wrapper.querySelectorAll('input, select, textarea, button').forEach(el => { el.disabled = disabled; });
+}
+
+function setRecallButtonState(state) {
+  const saveBtn = document.getElementById('save-progress-btn');
+  const finalizeBtn = document.getElementById('finalize-btn');
+  const unlockBtn = document.getElementById('unlock-recall-btn');
+  const saveLockBtn = document.getElementById('save-lock-recall-btn');
+  const exitBtn = document.getElementById('exit-recall-btn');
+  if (state === 'live') {
+    saveBtn?.classList.remove('hidden'); finalizeBtn?.classList.remove('hidden');
+    unlockBtn?.classList.add('hidden'); saveLockBtn?.classList.add('hidden'); exitBtn?.classList.add('hidden');
+  } else if (state === 'locked') {
+    saveBtn?.classList.add('hidden'); finalizeBtn?.classList.add('hidden');
+    unlockBtn?.classList.remove('hidden'); saveLockBtn?.classList.add('hidden'); exitBtn?.classList.remove('hidden');
+  } else if (state === 'editing') {
+    saveBtn?.classList.add('hidden'); finalizeBtn?.classList.add('hidden');
+    unlockBtn?.classList.add('hidden'); saveLockBtn?.classList.remove('hidden'); exitBtn?.classList.remove('hidden');
+  }
+}
+
+function resetRecallViewState() {
+  recalledSessionId = null;
+  const wrapper = document.getElementById('review-lockable-content');
+  if (wrapper) wrapper.classList.remove('recall-locked');
+  setLockableFieldsDisabled(false);
+  document.getElementById('recall-view-banner')?.classList.add('hidden');
+  setRecallButtonState('live');
+}
+
+function enterRecallLockedView(session) {
+  recalledSessionId = session.id;
+  unsubscribeFromActiveDraft(); // stop live-draft realtime updates from overwriting this locked view
+  document.getElementById('active-draft-banner')?.classList.add('hidden');
+  const banner = document.getElementById('recall-view-banner');
+  const text = document.getElementById('recall-view-banner-text');
+  if (banner && text) {
+    text.innerText = `Viewing finalized session: ${session.date_label || 'Untitled'} — read-only.`;
+    banner.classList.remove('hidden');
+  }
+  const wrapper = document.getElementById('review-lockable-content');
+  if (wrapper) wrapper.classList.add('recall-locked');
+  setLockableFieldsDisabled(true);
+  setRecallButtonState('locked');
+}
+
+function unlockRecalledSession() {
+  if (!recalledSessionId) return;
+  const wrapper = document.getElementById('review-lockable-content');
+  if (wrapper) wrapper.classList.remove('recall-locked');
+  setLockableFieldsDisabled(false);
+  const text = document.getElementById('recall-view-banner-text');
+  if (text) text.innerText = 'Editing a finalized session — click "Save & Lock" when done, or "Exit View" to discard changes.';
+  setRecallButtonState('editing');
+}
+
+async function saveAndLockRecalledSession() {
+  if (!recalledSessionId) return;
+  if (!window.confirm("Save changes to this finalized session and lock it again?")) return;
+  const sessionData = buildSessionDataObject();
+  sessionData.is_draft = false;
+  const { error } = await supabaseClient.from("weekly_reviews").update(sessionData).eq("id", recalledSessionId);
+  if (error) { console.error(error); showImportToast("Save failed: " + error.message); return; }
+  const wrapper = document.getElementById('review-lockable-content');
+  if (wrapper) wrapper.classList.add('recall-locked');
+  setLockableFieldsDisabled(true);
+  const text = document.getElementById('recall-view-banner-text');
+  if (text) text.innerText = `Viewing finalized session: ${document.getElementById('review-date-input')?.value || 'Untitled'} — read-only. (Just updated)`;
+  setRecallButtonState('locked');
+  await refreshSavedReviewSessionsDropdown();
+  showConfirmationToast("Session updated and locked!");
+}
+
+async function exitRecallView() {
+  recalledSessionId = null;
+  const wrapper = document.getElementById('review-lockable-content');
+  if (wrapper) wrapper.classList.remove('recall-locked');
+  setLockableFieldsDisabled(false);
+  document.getElementById('recall-view-banner')?.classList.add('hidden');
+  setRecallButtonState('live');
+  const dropdown = document.getElementById('review-saved-sessions-select');
+  if (dropdown) dropdown.value = '';
+
+  if (currentSessionId) {
+    const { data: liveSession } = await supabaseClient.from("weekly_reviews").select("*").eq("id", currentSessionId).single();
+    if (liveSession) { populateFormFromSession(liveSession); setActiveDraftBanner(liveSession.date_label); }
+    subscribeToActiveDraft(currentSessionId);
+  } else {
+    if (document.getElementById("review-date-input")) document.getElementById("review-date-input").value = "";
+    if (document.getElementById("review-leader-input")) document.getElementById("review-leader-input").value = "";
+    if (document.getElementById("review-attendees-input")) document.getElementById("review-attendees-input").value = "";
+    setQCData({});
+    const taskContainer = document.getElementById("rolling-tasks-container");
+    if (taskContainer) { taskContainer.innerHTML = ""; addRollingTaskCard(); }
+    REVIEW_AGENDA_SECTIONS.forEach(containerId => { const c = document.getElementById(containerId); if (c) { c.innerHTML = ""; addAgendaField(containerId); } });
+    const ratingContainer = document.getElementById("rating-fields-container");
+    if (ratingContainer) { ratingContainer.innerHTML = ""; for (let i = 0; i < 10; i++) addRatingField(""); }
+    calculateMeetingRatingAverage();
+  }
 }
 
 function buildSessionDataObject() {
@@ -2964,6 +3093,7 @@ function unsubscribeFromActiveDraft() {
 }
 
 async function checkForActiveDraftOnLoad() {
+  resetRecallViewState();
   const { data, error } = await supabaseClient
     .from("weekly_reviews")
     .select("*")
@@ -2983,6 +3113,7 @@ async function checkForActiveDraftOnLoad() {
 }
 
 async function startNewReviewSession() {lastFinalizedSessionId = null
+  resetRecallViewState();
   const { data: existingDrafts, error: draftErr } = await supabaseClient
     .from("weekly_reviews")
     .select("*")
@@ -3441,6 +3572,10 @@ function resetMeetingRatings() {
   showImportToast('Ratings reset.');
 }
         async function saveProgress() {
+  if (recalledSessionId) {
+    showImportToast('You\'re viewing a locked finalized session — click "Unlock & Edit" first.');
+    return;
+  }
   if (!currentSessionId) {
     showImportToast("No active session to save — click '+ New Review' first.");
     return;
@@ -3453,6 +3588,10 @@ function resetMeetingRatings() {
 }
 
 async function finalizeReviewSession() {
+  if (recalledSessionId) {
+    showImportToast('You\'re viewing a locked finalized session — use "Save & Lock" instead.');
+    return;
+  }
   if (!window.confirm("End this meeting and finalize the session? This closes it for good — no one will be able to keep editing it live after this.")) return;
 
   const sessionData = buildSessionDataObject();
