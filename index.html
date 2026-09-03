@@ -119,6 +119,26 @@
             pointer-events: none;
         }
 
+        #minutes-export-print-container { display: none; }
+
+        @media print {
+            body.printing-minutes-export * { visibility: hidden; }
+            body.printing-minutes-export #minutes-export-print-container,
+            body.printing-minutes-export #minutes-export-print-container * { visibility: visible; }
+            body.printing-minutes-export #minutes-export-print-container {
+                display: block !important;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white;
+                color: black;
+                padding: 20px;
+            }
+            .minutes-export-session { page-break-after: always; }
+            .minutes-export-session:last-child { page-break-after: auto; }
+        }
+
         @media print {
             body {
                 background: white !important;
@@ -141,14 +161,17 @@
 </head>
 <body class="h-full flex flex-col font-sans antialiased text-slate-200 bg-slate-950">
 
-    <!-- Global toast: fixed so it's visible no matter which tab is active -->
-    <div id="import-toast" class="hidden fixed bottom-5 right-5 max-w-sm p-3 bg-emerald-950/95 border border-emerald-500/50 rounded-xl text-emerald-300 text-xs flex items-center justify-between z-[9999] shadow-2xl no-print">
+    <!-- Global toast: fixed so it's visible no matter which tab is active; centered to sit in the footer bar, away from Netlify's floating badge -->
+    <div id="import-toast" class="hidden fixed bottom-3 left-1/2 -translate-x-1/2 max-w-sm p-3 bg-emerald-950/95 border border-emerald-500/50 rounded-xl text-emerald-300 text-xs flex items-center justify-between z-[9999] shadow-2xl no-print">
         <div class="flex items-center space-x-2">
             <i class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
             <span id="import-toast-msg">Successfully imported data!</span>
         </div>
         <button onclick="document.getElementById('import-toast').classList.add('hidden')" class="text-slate-400 hover:text-white ml-3"><i class="fa-solid fa-xmark"></i></button>
     </div>
+
+    <!-- Print-only container for the Export Minutes Range feature; populated and shown only while printing -->
+    <div id="minutes-export-print-container"></div>
 
     <!-- HEADER -->
     <header class="bg-slate-900 border-b border-teal-500/30 sticky top-0 z-50 shadow-lg no-print">
@@ -882,6 +905,42 @@
                         <span class="text-[11px] bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2.5 py-0.5 rounded-full font-semibold">4 Departments (Plan &amp; Achievements)</span>
                     </div>
 
+                    <!-- Full-Width Training Details Row (moved to top) -->
+                    <div class="bg-slate-900/90 p-4 rounded-xl border border-blue-500/30 space-y-3">
+                        <div class="flex items-center justify-between pb-1 border-b border-slate-800">
+                            <span class="font-bold text-xs text-blue-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-clipboard-list text-blue-400"></i>
+                                Training System Verification Registry
+                            </span>
+                            <button onclick="addVerificationEntry()" class="px-2 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded text-[10px] font-semibold transition flex items-center space-x-1 flex-shrink-0">
+                                <i class="fa-solid fa-plus text-[9px]"></i>
+                                <span>+ Add Line</span>
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-medium mb-1">Architecture Base</label>
+                                <select id="qc-training-system-select" class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white font-semibold focus:border-blue-500 cursor-pointer">
+                                    <option value="QMS">QMS (Quality Management System)</option>
+                                    <option value="LMS">LMS (Learning Management System)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-medium mb-1">SOP # Reference</label>
+                                <input type="text" id="qc-training-sop-num" placeholder="e.g. SOP-LAB-014" class="w-full bg-slate-950 border border-slate-800 rounded p-2 font-mono text-white focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-medium mb-1">Assignee(s) Target</label>
+                                <input type="text" id="qc-training-assignees" placeholder="e.g. Lab Staff, Packers" class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 font-medium mb-1">Training Notes / Specifics</label>
+                                <input type="text" id="qc-training-notes" placeholder="Enter notes or training scope here..." class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white focus:border-blue-500">
+                            </div>
+                        </div>
+                        <div id="training-verification-container" class="space-y-1.5"></div>
+                    </div>
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <!-- 1. Production -->
                         <div class="bg-slate-900/90 p-3.5 rounded-xl border border-slate-800 space-y-3">
@@ -986,42 +1045,6 @@
                                 <div id="training-quality-achievements-container" class="space-y-1.5 min-h-[36px] p-1 rounded-lg"></div>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- Full-Width Training Details Row (moved to top) -->
-                    <div class="bg-slate-900/90 p-4 rounded-xl border border-blue-500/30 space-y-3">
-                        <div class="flex items-center justify-between pb-1 border-b border-slate-800">
-                            <span class="font-bold text-xs text-blue-300 flex items-center gap-1.5">
-                                <i class="fa-solid fa-clipboard-list text-blue-400"></i>
-                                Training System Verification Registry
-                            </span>
-                            <button onclick="addVerificationEntry()" class="px-2 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded text-[10px] font-semibold transition flex items-center space-x-1 flex-shrink-0">
-                                <i class="fa-solid fa-plus text-[9px]"></i>
-                                <span>+ Add Line</span>
-                            </button>
-                        </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
-                            <div>
-                                <label class="block text-[10px] text-slate-400 font-medium mb-1">Architecture Base</label>
-                                <select id="qc-training-system-select" class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white font-semibold focus:border-blue-500 cursor-pointer">
-                                    <option value="QMS">QMS (Quality Management System)</option>
-                                    <option value="LMS">LMS (Learning Management System)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] text-slate-400 font-medium mb-1">SOP # Reference</label>
-                                <input type="text" id="qc-training-sop-num" placeholder="e.g. SOP-LAB-014" class="w-full bg-slate-950 border border-slate-800 rounded p-2 font-mono text-white focus:border-blue-500">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] text-slate-400 font-medium mb-1">Assignee(s) Target</label>
-                                <input type="text" id="qc-training-assignees" placeholder="e.g. Lab Staff, Packers" class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white focus:border-blue-500">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] text-slate-400 font-medium mb-1">Training Notes / Specifics</label>
-                                <input type="text" id="qc-training-notes" placeholder="Enter notes or training scope here..." class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white focus:border-blue-500">
-                            </div>
-                        </div>
-                        <div id="training-verification-container" class="space-y-1.5"></div>
                     </div>
                 </div>
 
@@ -2530,7 +2553,116 @@ if (abcRotationOverlayChart) { abcRotationOverlayChart.data.labels = weeks; abcR
             calculateMeetingRatingAverage(); showImportToast(carriedCount > 0 ? `Carried forward ${carriedCount} entries!` : "Cleared layout.");
         }
 
-        function executeExportMinutesRange(e) { e.preventDefault(); showConfirmationToast("Minutes Range exported successfully."); closeExportRangeModal(); }
+        const MINUTES_EXPORT_SECTION_LABELS = {
+            'good-news-container': 'Good News (Personal or Business)',
+            'issues-container': 'Issues List',
+            'maintenance-container': 'Maintenance and Construction',
+            'corrective-container': 'Corrective Actions & Non-Conformances',
+            'ci-container': 'Continuous Improvement',
+            'training-production-plan-container': 'Training — Production Dept. Plan',
+            'training-production-achievements-container': 'Training — Production Dept. Achievements',
+            'training-shipping-plan-container': 'Training — Shipping Dept. Plan',
+            'training-shipping-achievements-container': 'Training — Shipping Dept. Achievements',
+            'training-fulfillment-plan-container': 'Training — Fulfillment Dept. Plan',
+            'training-fulfillment-achievements-container': 'Training — Fulfillment Dept. Achievements',
+            'training-quality-plan-container': 'Training — Quality Dept. Plan',
+            'training-quality-achievements-container': 'Training — Quality Dept. Achievements',
+            'qc-new-products-container': 'New Products Added'
+        };
+
+        function escapeMinutesExportHtml(str) {
+            const div = document.createElement('div');
+            div.innerText = (str === null || str === undefined) ? '' : String(str);
+            return div.innerHTML;
+        }
+
+        function buildMinutesExportHtml(sessions, startVal, endVal) {
+            const rangeLabel = `${new Date(startVal + 'T00:00:00').toLocaleDateString()} – ${new Date(endVal + 'T00:00:00').toLocaleDateString()}`;
+            let html = `<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">
+                <h1 style="font-size: 20px; margin-bottom: 4px;">Lab Alley Weekly Operations — Meeting Minutes</h1>
+                <p style="font-size: 12px; color: #444; margin-top: 0;">Exported range: ${rangeLabel} &middot; ${sessions.length} session${sessions.length === 1 ? '' : 's'}</p>
+                <hr style="margin: 12px 0;">`;
+
+            sessions.forEach(session => {
+                const tasks = Array.isArray(session.tasks) ? session.tasks : [];
+                const sections = session.sections || {};
+                const ratings = Array.isArray(session.ratings) ? session.ratings.filter(r => r !== '' && r !== null && r !== undefined) : [];
+                const avgRating = ratings.length ? (ratings.reduce((a, b) => a + parseFloat(b), 0) / ratings.length).toFixed(1) : 'N/A';
+
+                html += `<div class="minutes-export-session" style="margin-bottom: 24px;">
+                    <h2 style="font-size: 16px; margin-bottom: 2px;">${escapeMinutesExportHtml(session.date_label || 'Untitled Session')}</h2>
+                    <p style="font-size: 12px; color: #444; margin: 0 0 10px 0;">
+                        Leader: ${escapeMinutesExportHtml(session.leader || '—')} &nbsp;|&nbsp;
+                        Attendees: ${escapeMinutesExportHtml(session.attendees || '—')} &nbsp;|&nbsp;
+                        Avg. Meeting Rating: ${avgRating}
+                    </p>`;
+
+                if (tasks.length > 0) {
+                    html += `<h3 style="font-size: 13px; margin-bottom: 4px;">Rolling Action Items</h3>
+                        <table style="width:100%; border-collapse: collapse; font-size: 11px; margin-bottom: 10px;">
+                        <tr style="background:#eee;"><th style="text-align:left; padding:3px; border:1px solid #ccc;">Task</th><th style="text-align:left; padding:3px; border:1px solid #ccc;">Owner</th><th style="text-align:left; padding:3px; border:1px solid #ccc;">Due</th><th style="text-align:left; padding:3px; border:1px solid #ccc;">Status</th></tr>`;
+                    tasks.forEach(t => {
+                        html += `<tr><td style="padding:3px; border:1px solid #ccc;">${escapeMinutesExportHtml(t.task || '')}</td><td style="padding:3px; border:1px solid #ccc;">${escapeMinutesExportHtml(t.owner || '')}</td><td style="padding:3px; border:1px solid #ccc;">${escapeMinutesExportHtml(t.dueDate || '')}</td><td style="padding:3px; border:1px solid #ccc;">${escapeMinutesExportHtml(t.status || '')}</td></tr>`;
+                    });
+                    html += `</table>`;
+                }
+
+                REVIEW_AGENDA_SECTIONS.forEach(containerId => {
+                    const rawVals = sections[containerId] || [];
+                    const vals = rawVals.map(v => (typeof v === 'object' && v !== null) ? v.text : v).filter(v => v && String(v).trim() !== '');
+                    if (vals.length === 0) return;
+                    const label = MINUTES_EXPORT_SECTION_LABELS[containerId] || containerId;
+                    html += `<h3 style="font-size: 13px; margin-bottom: 4px;">${escapeMinutesExportHtml(label)}</h3><ul style="font-size: 11px; margin-top: 0; padding-left: 18px;">`;
+                    vals.forEach(v => { html += `<li>${escapeMinutesExportHtml(v)}</li>`; });
+                    html += `</ul>`;
+                });
+
+                html += `</div>`;
+            });
+
+            html += `</div>`;
+            return html;
+        }
+
+        async function executeExportMinutesRange(e) {
+            e.preventDefault();
+            const startVal = document.getElementById('export-range-start').value;
+            const endVal = document.getElementById('export-range-end').value;
+            if (!startVal || !endVal) { showImportToast("Please select both a start and end date."); return; }
+
+            const startDate = new Date(startVal + 'T00:00:00');
+            const endDate = new Date(endVal + 'T23:59:59');
+            if (startDate > endDate) { showImportToast("Start date must be before end date."); return; }
+
+            showImportToast("Gathering sessions in range...");
+
+            const { data: sessions, error } = await supabaseClient
+                .from('weekly_reviews')
+                .select('*')
+                .eq('is_draft', false)
+                .gte('created_at', startDate.toISOString())
+                .lte('created_at', endDate.toISOString())
+                .order('created_at', { ascending: true });
+
+            if (error) { console.error(error); showImportToast("Couldn't fetch sessions: " + error.message); return; }
+            if (!sessions || sessions.length === 0) { showImportToast("No finalized sessions found in that date range."); return; }
+
+            const printContainer = document.getElementById('minutes-export-print-container');
+            if (!printContainer) { showImportToast("Export failed: print container missing."); return; }
+
+            printContainer.innerHTML = buildMinutesExportHtml(sessions, startVal, endVal);
+            closeExportRangeModal();
+            document.body.classList.add('printing-minutes-export');
+
+            const cleanupMinutesExportPrint = () => {
+                document.body.classList.remove('printing-minutes-export');
+                printContainer.innerHTML = '';
+                window.removeEventListener('afterprint', cleanupMinutesExportPrint);
+            };
+            window.addEventListener('afterprint', cleanupMinutesExportPrint);
+
+            setTimeout(() => window.print(), 150);
+        }
         function initWeeklyOperationsReviewPage() {
             REVIEW_AGENDA_SECTIONS.forEach(containerId => { const c = document.getElementById(containerId); if (c && c.children.length === 0) addAgendaField(containerId); });
             if (document.getElementById('rolling-tasks-container')?.children.length === 0) {
