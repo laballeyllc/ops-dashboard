@@ -120,12 +120,17 @@
         }
 
         #minutes-export-print-container { display: none; }
+        #exec-summary-print-container { display: none; }
 
         @media print {
-            body.printing-minutes-export * { visibility: hidden; }
+            body.printing-minutes-export *,
+            body.printing-exec-summary * { visibility: hidden; }
             body.printing-minutes-export #minutes-export-print-container,
-            body.printing-minutes-export #minutes-export-print-container * { visibility: visible; }
-            body.printing-minutes-export #minutes-export-print-container {
+            body.printing-minutes-export #minutes-export-print-container *,
+            body.printing-exec-summary #exec-summary-print-container,
+            body.printing-exec-summary #exec-summary-print-container * { visibility: visible; }
+            body.printing-minutes-export #minutes-export-print-container,
+            body.printing-exec-summary #exec-summary-print-container {
                 display: block !important;
                 position: absolute;
                 left: 0;
@@ -172,6 +177,9 @@
 
     <!-- Print-only container for the Export Minutes Range feature; populated and shown only while printing -->
     <div id="minutes-export-print-container"></div>
+
+    <!-- Print-only container for the Executive Summary feature; populated and shown only while printing -->
+    <div id="exec-summary-print-container"></div>
 
     <!-- HEADER -->
     <header class="bg-slate-900 border-b border-teal-500/30 sticky top-0 z-50 shadow-lg no-print">
@@ -221,10 +229,10 @@
                         <span class="hidden xl:inline">Weekly Brief Scribe</span>
                     </button>
 
-                    <!-- Executive PDF Exporter Button -->
-                    <button onclick="triggerExecutivePdfExport()" class="text-xs px-3 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white rounded-lg transition font-bold flex items-center space-x-1.5 shadow border border-amber-400/40" title="Export Executive Summary PDF or Slide Deck">
+                    <!-- Executive Summary PDF Exporter Button -->
+                    <button onclick="triggerExecutivePdfExport()" class="text-xs px-3 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white rounded-lg transition font-bold flex items-center space-x-1.5 shadow border border-amber-400/40" title="Generate a one-page Executive Summary PDF: trailing 4-week KPIs + top talking points">
                         <i class="fa-solid fa-file-pdf text-amber-200"></i>
-                        <span class="hidden lg:inline">Executive Deck</span>
+                        <span class="hidden lg:inline">Executive Summary</span>
                     </button>
 
                     <button onclick="triggerManualFetch()" id="btn-sync-now-header" class="text-xs px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition font-bold flex items-center space-x-1.5 shadow border border-emerald-400/40" title="Sync / Re-read connected Google Sheet or File">
@@ -1638,9 +1646,234 @@
             closeExecutiveBriefModal();
         }
 
-        function triggerExecutivePdfExport() {
-            showImportToast("Generating Executive Deck PDF...");
-            setTimeout(() => showConfirmationToast("Executive Deck Export Complete!"), 2000);
+        const EXEC_SUMMARY_GOOD_NEWS_EXCLUDE_KEYWORDS = [
+            'birthday', 'anniversary', 'wedding', 'engagement', 'baby shower', 'pregnan',
+            'retirement party', 'farewell', 'condolences', 'get well soon', 'funeral',
+            'welcome home', 'out sick', 'on vacation', 'on pto', 'happy hour', 'potluck',
+            'holiday party', 'bake sale'
+        ];
+
+        function execSummaryTextExcluded(text) {
+            const lower = String(text).toLowerCase();
+            return EXEC_SUMMARY_GOOD_NEWS_EXCLUDE_KEYWORDS.some(kw => lower.includes(kw));
+        }
+
+        function execSummaryAvg(rows, key) {
+            const vals = rows.map(r => r[key]).filter(v => typeof v === 'number');
+            if (vals.length === 0) return null;
+            return vals.reduce((a, b) => a + b, 0) / vals.length;
+        }
+
+        function getExecSummaryOperationsWindows() {
+            const rows = operationsData
+                .map(r => ({ row: r, date: parseRowDate(r.week) }))
+                .filter(r => r.date)
+                .sort((a, b) => a.date - b.date);
+            return { current: rows.slice(-4).map(r => r.row), prior: rows.slice(-8, -4).map(r => r.row) };
+        }
+
+        function computeExecSummaryKpis() {
+            const { current, prior } = getExecSummaryOperationsWindows();
+            const defs = [
+                { key: 'slaPercent', label: '48-hr ship SLA', format: 'pct1', goodDirection: 'up' },
+                { key: 'custom_rot_a', label: 'Rotation A accuracy', format: 'pct1', goodDirection: 'up' },
+                { key: 'startMonday', label: 'Backlog at Mon SOD', format: 'int', goodDirection: 'down' },
+                { key: 'poValuation', label: 'Open PO value', format: 'currencyK', goodDirection: 'up' }
+            ];
+            return defs.map(d => {
+                const curAvg = execSummaryAvg(current, d.key);
+                const priorAvg = execSummaryAvg(prior, d.key);
+                return { ...d, curAvg, priorAvg, hasData: curAvg !== null };
+            });
+        }
+
+        function formatExecSummaryKpiValue(kpi) {
+            if (kpi.curAvg === null) return 'N/A';
+            if (kpi.format === 'pct1') return kpi.curAvg.toFixed(1) + '%';
+            if (kpi.format === 'int') return Math.round(kpi.curAvg).toLocaleString();
+            if (kpi.format === 'currencyK') return '$' + Math.round(kpi.curAvg / 1000) + 'K';
+            return String(kpi.curAvg);
+        }
+
+        function formatExecSummaryKpiDelta(kpi) {
+            if (kpi.curAvg === null || kpi.priorAvg === null || kpi.priorAvg === 0) return { text: 'No prior data', good: null };
+            if (kpi.format === 'pct1') {
+                const diff = kpi.curAvg - kpi.priorAvg;
+                const good = kpi.goodDirection === 'up' ? diff >= 0 : diff <= 0;
+                return { text: (diff >= 0 ? '+' : '') + diff.toFixed(1) + ' pts', good };
+            }
+            const pctChange = ((kpi.curAvg - kpi.priorAvg) / Math.abs(kpi.priorAvg)) * 100;
+            const good = kpi.goodDirection === 'up' ? pctChange >= 0 : pctChange <= 0;
+            return { text: (pctChange >= 0 ? '+' : '') + pctChange.toFixed(0) + '%', good };
+        }
+
+        async function fetchExecSummaryReviewWindows() {
+            const now = new Date();
+            const currentStart = new Date(now.getTime() - 28 * 86400000);
+            const priorStart = new Date(now.getTime() - 56 * 86400000);
+            const { data: currentSessions, error: err1 } = await supabaseClient.from('weekly_reviews').select('*').eq('is_draft', false).gte('created_at', currentStart.toISOString()).order('created_at', { ascending: false });
+            const { data: priorSessions, error: err2 } = await supabaseClient.from('weekly_reviews').select('*').eq('is_draft', false).gte('created_at', priorStart.toISOString()).lt('created_at', currentStart.toISOString());
+            if (err1 || err2) { console.error(err1 || err2); return null; }
+            return { currentSessions: currentSessions || [], priorSessions: priorSessions || [] };
+        }
+
+        function countOpenCorrectiveActions(sessions) {
+            let count = 0;
+            sessions.forEach(s => {
+                const entries = (s.sections && s.sections['corrective-container']) || [];
+                entries.forEach(e => {
+                    const status = (typeof e === 'object' && e !== null) ? e.status : null;
+                    if (status !== 'Complete') count++;
+                });
+            });
+            return count;
+        }
+
+        function collectExecSummarySectionItems(sessions, containerIds) {
+            const items = [];
+            sessions.forEach((s, sessionIdx) => {
+                containerIds.forEach(cid => {
+                    const entries = (s.sections && s.sections[cid]) || [];
+                    entries.forEach(e => {
+                        const text = (typeof e === 'object' && e !== null) ? e.text : e;
+                        if (text && String(text).trim() !== '') {
+                            items.push({ text: String(text).trim(), sessionIdx, len: String(text).trim().length });
+                        }
+                    });
+                });
+            });
+            return items;
+        }
+
+        function rankExecSummaryItems(items, limit) {
+            return items.slice().sort((a, b) => (a.sessionIdx - b.sessionIdx) || (b.len - a.len)).slice(0, limit);
+        }
+
+        function collectExecSummaryOpenTasks(sessions) {
+            const latestById = {};
+            sessions.forEach((s, idx) => {
+                (s.tasks || []).forEach(t => {
+                    if (!latestById[t.id] || idx < latestById[t.id].idx) latestById[t.id] = { ...t, idx };
+                });
+            });
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            const openTasks = Object.values(latestById).filter(t => t.status !== 'Complete');
+            openTasks.forEach(t => {
+                const isOverdue = t.dueDate ? (new Date(t.dueDate) < today) : false;
+                t.isOverdue = isOverdue;
+                t.priority = t.status === 'Blocked' ? 0 : (isOverdue ? 1 : 2);
+            });
+            openTasks.sort((a, b) => a.priority - b.priority);
+            return openTasks;
+        }
+
+        function escapeExecSummaryHtml(str) {
+            const div = document.createElement('div');
+            div.innerText = (str === null || str === undefined) ? '' : String(str);
+            return div.innerHTML;
+        }
+
+        function buildExecSummaryHtml(kpis, data) {
+            const today = new Date();
+            const rangeStart = new Date(today.getTime() - 28 * 86400000);
+            const rangeLabel = `${rangeStart.toLocaleDateString()} \u2013 ${today.toLocaleDateString()}`;
+
+            const kpiHtml = kpis.map(k => {
+                const delta = formatExecSummaryKpiDelta(k);
+                const color = delta.good === null ? '#6b7280' : (delta.good ? '#0f6e56' : '#b45309');
+                return `<div style="flex:1; border:1px solid #e5e7eb; border-radius:6px; padding:10px 10px 8px 10px;">
+                    <div style="font-size:10px; color:#6b7280; line-height:1.3; margin-bottom:4px; min-height:26px;">${escapeExecSummaryHtml(k.label)}</div>
+                    <div style="font-size:19px; font-weight:700;">${escapeExecSummaryHtml(formatExecSummaryKpiValue(k))}</div>
+                    <div style="font-size:11px; font-weight:600; margin-top:1px; color:${color};">${escapeExecSummaryHtml(delta.text)}</div>
+                </div>`;
+            }).join('');
+
+            const goodNewsRaw = collectExecSummarySectionItems(data.currentSessions, ['good-news-container']);
+            const goodNewsFiltered = goodNewsRaw.filter(i => !execSummaryTextExcluded(i.text));
+            const excludedCount = goodNewsRaw.length - goodNewsFiltered.length;
+            const goodNews = rankExecSummaryItems(goodNewsFiltered, 3);
+
+            const risksRaw = collectExecSummarySectionItems(data.currentSessions, ['issues-container', 'corrective-container']);
+            const risks = rankExecSummaryItems(risksRaw, 3);
+
+            const openTasks = collectExecSummaryOpenTasks(data.currentSessions);
+            const blockedCount = openTasks.filter(t => t.status === 'Blocked').length;
+            const taskBullets = openTasks.slice(0, 3);
+
+            const trainingRaw = collectExecSummarySectionItems(data.currentSessions, ['ci-container', 'training-production-achievements-container', 'training-shipping-achievements-container', 'training-fulfillment-achievements-container', 'training-quality-achievements-container']);
+            const training = rankExecSummaryItems(trainingRaw, 3);
+
+            const sectionBlock = (title, titleColor, summary, bulletsHtml) => `
+                <div style="flex:1 1 45%; min-width:300px;">
+                    <div style="font-size:13px; font-weight:700; color:${titleColor}; border-bottom:1px solid #d1d5db; padding-bottom:4px; margin-bottom:6px;">${escapeExecSummaryHtml(title)}</div>
+                    <div style="font-size:12px; line-height:1.5; margin-bottom:6px;">${summary}</div>
+                    ${bulletsHtml}
+                </div>`;
+
+            const bulletsList = (items, emptyText) => {
+                if (items.length === 0) return `<p style="font-size:11.5px; color:#9ca3af; margin:0;">${escapeExecSummaryHtml(emptyText)}</p>`;
+                return `<ul style="list-style:none; padding:0; margin:0;">${items.map(i => `<li style="font-size:11.5px; line-height:1.5; color:#374151; padding-left:12px; position:relative; margin-bottom:3px;"><span style="position:absolute; left:0; top:6px; width:4px; height:4px; background:#9ca3af; border-radius:50%;"></span>${escapeExecSummaryHtml(i.text)}</li>`).join('')}</ul>`;
+            };
+
+            const taskBulletsList = taskBullets.length === 0 ? `<p style="font-size:11.5px; color:#9ca3af; margin:0;">No open tasks in this period.</p>` : `<ul style="list-style:none; padding:0; margin:0;">${taskBullets.map(t => `<li style="font-size:11.5px; line-height:1.5; color:#374151; padding-left:12px; position:relative; margin-bottom:3px;"><span style="position:absolute; left:0; top:6px; width:4px; height:4px; background:#9ca3af; border-radius:50%;"></span>${escapeExecSummaryHtml(t.task)}${t.status === 'Blocked' ? ' \u2014 Blocked' : (t.isOverdue ? ' \u2014 Overdue' : '')}</li>`).join('')}</ul>`;
+
+            const correctiveKpi = { label: 'Corrective actions open', curAvg: countOpenCorrectiveActions(data.currentSessions), priorAvg: countOpenCorrectiveActions(data.priorSessions) };
+            const correctiveDiff = correctiveKpi.priorAvg === null ? null : (correctiveKpi.curAvg - correctiveKpi.priorAvg);
+            const correctiveColor = correctiveDiff === null ? '#6b7280' : (correctiveDiff <= 0 ? '#0f6e56' : '#b45309');
+            const correctiveDeltaText = correctiveDiff === null ? 'No prior data' : ((correctiveDiff >= 0 ? '+' : '') + correctiveDiff);
+            const correctiveHtml = `<div style="flex:1; border:1px solid #e5e7eb; border-radius:6px; padding:10px 10px 8px 10px;">
+                <div style="font-size:10px; color:#6b7280; line-height:1.3; margin-bottom:4px; min-height:26px;">Corrective actions open</div>
+                <div style="font-size:19px; font-weight:700;">${correctiveKpi.curAvg}</div>
+                <div style="font-size:11px; font-weight:600; margin-top:1px; color:${correctiveColor};">${escapeExecSummaryHtml(correctiveDeltaText)}</div>
+            </div>`;
+
+            return `<div style="font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; max-width: 780px; margin: 0 auto; color:#1a1a1a;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #0f6e56; padding-bottom:14px; margin-bottom:22px;">
+                    <div>
+                        <img src="lab-alley-logo-blue.png" alt="Lab Alley Essential Chemicals" style="height:48px; width:auto; display:block;">
+                        <div style="font-size:11px; color:#6b7280; margin-top:6px;">Weekly Operations</div>
+                    </div>
+                    <div>
+                        <div style="font-size:21px; font-weight:700; text-align:right;">Executive summary</div>
+                        <div style="font-size:12px; color:#6b7280; text-align:right; margin-top:3px;">Trailing 4 weeks &nbsp;&middot;&nbsp; ${rangeLabel}</div>
+                    </div>
+                </div>
+                <div style="display:flex; gap:10px; margin-bottom:26px;">${kpiHtml}${correctiveHtml}</div>
+                <div style="display:flex; flex-wrap:wrap; gap:20px 26px;">
+                    ${sectionBlock('Good news', '#0f6e56', `${goodNews.length} item${goodNews.length === 1 ? '' : 's'} highlighted from this period.`, bulletsList(goodNews, 'No good news items logged this period.'))}
+                    ${sectionBlock('Open risks', '#b45309', `${risks.length} open issue${risks.length === 1 ? '' : 's'}/corrective action${risks.length === 1 ? '' : 's'} logged.`, bulletsList(risks, 'No open issues logged this period.'))}
+                    ${sectionBlock('Rolling tasks needing attention', '#0f6e56', `${openTasks.length} open task${openTasks.length === 1 ? '' : 's'}, ${blockedCount} blocked.`, taskBulletsList)}
+                    ${sectionBlock('Training &amp; continuous improvement', '#0f6e56', `${training.length} update${training.length === 1 ? '' : 's'} logged across departments.`, bulletsList(training, 'No training/CI updates logged this period.'))}
+                </div>
+                <div style="margin-top:26px; padding-top:10px; border-top:1px solid #e5e7eb; display:flex; justify-content:space-between; font-size:10px; color:#9ca3af;">
+                    <span>${excludedCount} item${excludedCount === 1 ? '' : 's'} auto-filtered as personal/non-business content</span>
+                    <span>Generated ${today.toLocaleDateString()}</span>
+                </div>
+            </div>`;
+        }
+
+        async function triggerExecutivePdfExport() {
+            showImportToast("Gathering data for Executive Summary...");
+
+            const kpis = computeExecSummaryKpis();
+            const reviewData = await fetchExecSummaryReviewWindows();
+            if (!reviewData) { showImportToast("Couldn't fetch review data for the summary."); return; }
+            if (reviewData.currentSessions.length === 0) { showImportToast("No finalized sessions in the trailing 4 weeks \u2014 nothing to summarize yet."); return; }
+
+            const printContainer = document.getElementById('exec-summary-print-container');
+            if (!printContainer) { showImportToast("Export failed: print container missing."); return; }
+
+            printContainer.innerHTML = buildExecSummaryHtml(kpis, reviewData);
+            document.body.classList.add('printing-exec-summary');
+
+            const cleanupExecSummaryPrint = () => {
+                document.body.classList.remove('printing-exec-summary');
+                printContainer.innerHTML = '';
+                window.removeEventListener('afterprint', cleanupExecSummaryPrint);
+            };
+            window.addEventListener('afterprint', cleanupExecSummaryPrint);
+
+            setTimeout(() => window.print(), 150);
         }
 
         function applyCustomDateRange(e) {
