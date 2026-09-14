@@ -3436,6 +3436,27 @@ async function syncDraftToServer() {
   markDraftSaved();
 }
 
+let pendingRemoteSessionUpdate = null;
+
+function isUserActivelyEditingReviewForm() {
+  const active = document.activeElement;
+  if (!active) return false;
+  const tag = active.tagName;
+  if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') return false;
+  const wrapper = document.getElementById('review-lockable-content');
+  return wrapper ? wrapper.contains(active) : false;
+}
+
+document.addEventListener('focusout', () => {
+  setTimeout(() => {
+    if (!isUserActivelyEditingReviewForm() && pendingRemoteSessionUpdate) {
+      const toApply = pendingRemoteSessionUpdate;
+      pendingRemoteSessionUpdate = null;
+      populateFormFromSession(toApply);
+    }
+  }, 50);
+});
+
 function subscribeToActiveDraft(sessionId) {
   if (currentSessionChannel) supabaseClient.removeChannel(currentSessionChannel);
   currentSessionChannel = supabaseClient
@@ -3444,6 +3465,14 @@ function subscribeToActiveDraft(sessionId) {
       "postgres_changes",
       { event: "UPDATE", schema: "public", table: "weekly_reviews", filter: `id=eq.${sessionId}` },
       payload => {
+        // Never blow away the form while someone has an active field focused here —
+        // that's what was kicking users' cursors out mid-keystroke (every debounced
+        // auto-save echoes back through this same channel, including our own writes).
+        // Defer and apply the latest version once focus actually leaves the form.
+        if (isUserActivelyEditingReviewForm()) {
+          pendingRemoteSessionUpdate = payload.new;
+          return;
+        }
         populateFormFromSession(payload.new);
       }
     )
@@ -3455,6 +3484,7 @@ function unsubscribeFromActiveDraft() {
     supabaseClient.removeChannel(currentSessionChannel);
     currentSessionChannel = null;
   }
+  pendingRemoteSessionUpdate = null;
 }
 
 async function checkForActiveDraftOnLoad() {
