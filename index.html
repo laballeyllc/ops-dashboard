@@ -892,10 +892,16 @@
                                 Continuous Improvement
                             </h4>
                         </div>
-                        <button onclick="addAgendaField('ci-container')" class="px-2.5 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded text-xs font-semibold transition flex items-center space-x-1">
-                            <i class="fa-solid fa-plus text-[10px]"></i>
-                            <span>Add Field</span>
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <a href="https://drive.google.com/drive/folders/1sY1G8MCckNlH7bMHgTF4hFIgQb6C1EZh" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-emerald-300 border border-slate-700 hover:border-emerald-500/40 rounded text-xs font-semibold transition flex items-center space-x-1.5" title="Open the Continuous Improvement reports folder in Google Drive">
+                                <i class="fa-solid fa-folder-open text-amber-400"></i>
+                                <span>CI Reports Folder</span>
+                            </a>
+                            <button onclick="addAgendaField('ci-container')" class="px-2.5 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded text-xs font-semibold transition flex items-center space-x-1">
+                                <i class="fa-solid fa-plus text-[10px]"></i>
+                                <span>Add Field</span>
+                            </button>
+                        </div>
                     </div>
                     <div id="ci-container" class="space-y-2 min-h-[48px] p-1 rounded-xl transition-all"></div>
                 </div>
@@ -2650,7 +2656,7 @@
         }
 
         function enableItemDragAndDrop() {
-            document.querySelectorAll('.rolling-task-card, .agenda-field-group').forEach(item => {
+            document.querySelectorAll('.rolling-task-card, .agenda-field-group, .verification-entry-row').forEach(item => {
                 if (item.dataset.itemDragInitialized) return; item.dataset.itemDragInitialized = "true";
                 item.addEventListener('mousedown', (e) => { item.draggable = !!e.target.closest('.drag-handle-item'); });
                 item.addEventListener('dragstart', (e) => { if (!item.draggable) return e.preventDefault(); cleanupAllDragStyles(); draggedItem = item; isDraggingAnyBubble = true; item.classList.add('item-dragging'); });
@@ -2906,6 +2912,17 @@ if (abcRotationOverlayChart) { abcRotationOverlayChart.data.labels = weeks; abcR
             refreshSavedReviewSessionsDropdown();
         }
 
+        function escapeHtmlContent(str) {
+            return String(str === null || str === undefined ? '' : str)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function autoGrowTextarea(el) {
+            if (!el) return;
+            el.style.height = 'auto';
+            el.style.height = Math.max(el.scrollHeight, 36) + 'px';
+        }
+
         function addRollingTaskCard(taskData = {}) {
             const container = document.getElementById('rolling-tasks-container'); if (!container) return; const taskId = taskData.id || 'task_' + Date.now();
             const card = document.createElement('div'); card.className = "rolling-task-card bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2 relative transition hover:border-amber-500/50"; card.dataset.taskId = taskId; card.dataset.ageWeeks = taskData.ageWeeks || 1;
@@ -2913,9 +2930,9 @@ if (abcRotationOverlayChart) { abcRotationOverlayChart.data.labels = weeks; abcR
             card.innerHTML = `
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div class="flex items-center space-x-2 flex-1">
-                        <i class="fa-solid fa-grip-vertical text-slate-500 hover:text-amber-400 drag-handle-item text-xs p-1 flex-shrink-0 cursor-grab"></i>
+                        <i class="fa-solid fa-ellipsis-vertical text-slate-500 hover:text-amber-400 drag-handle-item text-xs p-1 flex-shrink-0 cursor-grab"></i>
                         <span class="text-[10px] px-2 py-0.5 rounded font-mono font-bold border flex-shrink-0 ${(taskData.ageWeeks || 1) > 1 ? 'bg-purple-500/20 text-purple-300 border-purple-500/40' : 'bg-slate-800 text-slate-400 border-slate-700'}">${(taskData.ageWeeks || 1) > 1 ? `Open ${taskData.ageWeeks} Wks` : 'New Task'}</span>
-                        <input type="text" value="${(taskData.task || '').replace(/"/g, '&quot;')}" placeholder="Describe action item..." class="task-text-input w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white focus:border-amber-400 font-sans font-semibold">
+                        <textarea rows="1" oninput="autoGrowTextarea(this)" placeholder="Describe action item..." class="task-text-input w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white focus:border-amber-400 font-sans font-semibold resize-y" style="min-height:36px; overflow:hidden;">${escapeHtmlContent(taskData.task || '')}</textarea>
                     </div>
                     <div class="flex items-center space-x-2 flex-shrink-0">
                         <input type="text" value="${(taskData.owner || '').replace(/"/g, '&quot;')}" placeholder="Owner" class="task-owner-input w-28 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:border-amber-400">
@@ -2929,7 +2946,7 @@ if (abcRotationOverlayChart) { abcRotationOverlayChart.data.labels = weeks; abcR
                         <button onclick="this.closest('.rolling-task-card').remove()" class="text-slate-500 hover:text-red-400 p-1.5 rounded hover:bg-slate-800"><i class="fa-solid fa-trash-can text-xs"></i></button>
                     </div>
                 </div>`;
-            container.appendChild(card); enableItemDragAndDrop();
+            container.appendChild(card); autoGrowTextarea(card.querySelector('.task-text-input')); enableItemDragAndDrop();
         }
 
         function updateTaskBadgeStyle(selectEl) { const val = selectEl.value; const cls = { 'Open': 'bg-amber-500/20 text-amber-300 border-amber-500/40', 'In Progress': 'bg-blue-500/20 text-blue-300 border-blue-500/40', 'Blocked': 'bg-red-500/20 text-red-300 border-red-500/40', 'Complete': 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' }; selectEl.className = `task-status-select text-xs font-bold px-2.5 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none cursor-pointer ${cls[val] || cls['Open']}`; }
@@ -2939,7 +2956,7 @@ if (abcRotationOverlayChart) { abcRotationOverlayChart.data.labels = weeks; abcR
             let text = typeof initialData === 'object' ? (initialData.text || '') : initialData; let ageWeeks = typeof initialData === 'object' ? (parseInt(initialData.ageWeeks) || 1) : 1;
             const fieldGroup = document.createElement('div'); fieldGroup.className = "flex items-center space-x-2 agenda-field-group p-1 bg-slate-900/80 rounded-lg border border-slate-800 hover:border-slate-700 transition"; fieldGroup.dataset.ageWeeks = ageWeeks;
             fieldGroup.innerHTML = `
-                <i class="fa-solid fa-bars text-slate-500 hover:text-amber-400 drag-handle-item text-xs p-1 flex-shrink-0 cursor-grab"></i>
+                <i class="fa-solid fa-ellipsis-vertical text-slate-500 hover:text-amber-400 drag-handle-item text-xs p-1 flex-shrink-0 cursor-grab"></i>
                 <span class="badge-age-tag text-[9px] px-1.5 py-0.5 rounded font-mono font-bold border flex-shrink-0 ${ageWeeks > 1 ? 'bg-purple-500/20 text-purple-300 border-purple-500/40' : 'bg-slate-800 text-slate-400 border-slate-700'}">${ageWeeks > 1 ? `Open ${ageWeeks} Wks` : 'New'}</span>
                 <input type="text" value="${text.replace(/"/g, '&quot;')}" placeholder="Enter details..." class="agenda-text-input w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white focus:border-teal-500 font-sans">
                 <button onclick="removeAgendaField(this, '${containerId}')" class="text-slate-500 hover:text-red-400 p-1.5 rounded hover:bg-slate-800 text-xs flex-shrink-0"><i class="fa-solid fa-trash-can"></i></button>`;
@@ -3806,7 +3823,7 @@ function addAgendaField(containerId, initialData = '') {
   fieldGroup.dataset.ageWeeks = ageWeeks;
 
   const badgeHtml = `<span class="badge-age-tag text-[9px] px-1.5 py-0.5 rounded font-mono font-bold border flex-shrink-0 ${ageWeeks > 1 ? 'bg-purple-500/20 text-purple-300 border-purple-500/40' : 'bg-slate-800 text-slate-400 border-slate-700'}">${ageWeeks > 1 ? `Open ${ageWeeks} Wks` : 'New'}</span>`;
-  const textInputHtml = `<input type="text" value="${text.replace(/"/g, '&quot;')}" placeholder="Enter details..." class="agenda-text-input w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white focus:border-teal-500 font-sans">`;
+  const textInputHtml = `<textarea rows="1" oninput="autoGrowTextarea(this)" placeholder="Enter details..." class="agenda-text-input w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white focus:border-teal-500 font-sans resize-y" style="min-height:36px; overflow:hidden;">${escapeHtmlContent(text)}</textarea>`;
   const deleteBtnHtml = `<button onclick="removeAgendaField(this, '${containerId}')" class="text-slate-500 hover:text-red-400 p-1.5 rounded hover:bg-slate-800 text-xs flex-shrink-0"><i class="fa-solid fa-trash-can"></i></button>`;
 
   if (useFullFields) {
@@ -3814,7 +3831,7 @@ function addAgendaField(containerId, initialData = '') {
     const dueDate = isObj ? (initialData.dueDate || '') : '';
     const status = isObj ? (initialData.status || 'Open') : 'Open';
     fieldGroup.innerHTML = `
-      <i class="fa-solid fa-bars text-slate-500 hover:text-amber-400 drag-handle-item text-xs p-1 flex-shrink-0 cursor-grab"></i>
+      <i class="fa-solid fa-ellipsis-vertical text-slate-500 hover:text-amber-400 drag-handle-item text-xs p-1 flex-shrink-0 cursor-grab"></i>
       ${badgeHtml}
       ${textInputHtml}
       <input type="text" value="${owner.replace(/"/g, '&quot;')}" placeholder="Owner" class="task-owner-input w-28 flex-shrink-0 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white focus:border-teal-500 font-sans">
@@ -3830,13 +3847,14 @@ function addAgendaField(containerId, initialData = '') {
     if (statusSelect) { statusSelect.value = status; updateTaskBadgeStyle(statusSelect); }
   } else {
     fieldGroup.innerHTML = `
-      <i class="fa-solid fa-bars text-slate-500 hover:text-amber-400 drag-handle-item text-xs p-1 flex-shrink-0 cursor-grab"></i>
+      <i class="fa-solid fa-ellipsis-vertical text-slate-500 hover:text-amber-400 drag-handle-item text-xs p-1 flex-shrink-0 cursor-grab"></i>
       ${badgeHtml}
       ${textInputHtml}
       ${deleteBtnHtml}`;
   }
 
   container.appendChild(fieldGroup);
+  autoGrowTextarea(fieldGroup.querySelector('.agenda-text-input'));
   enableItemDragAndDrop();
 }
         function showConfirmationToast(msg) {
@@ -3880,6 +3898,10 @@ document.addEventListener('click', (e) => {
   const row = document.createElement('div');
   row.className = 'verification-entry-row grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs items-end mt-3 pt-3 border-t border-slate-800';
   row.innerHTML = `
+    <div class="flex items-end gap-1 sm:col-span-1" style="grid-column: 1 / -1;">
+      <i class="fa-solid fa-ellipsis-vertical text-slate-500 hover:text-amber-400 drag-handle-item text-xs p-1 flex-shrink-0 cursor-grab"></i>
+      <span class="text-[9px] text-slate-500">Drag to reorder</span>
+    </div>
     <div>
       <label class="block text-[10px] text-slate-400 font-medium mb-1">Architecture Base</label>
       <select class="verification-system-select w-full bg-slate-950 border border-slate-800 rounded p-2 text-white font-semibold focus:border-blue-500 cursor-pointer">
@@ -3898,11 +3920,13 @@ document.addEventListener('click', (e) => {
     <div class="flex items-end gap-2">
       <div class="flex-1">
         <label class="block text-[10px] text-slate-400 font-medium mb-1">Training Notes / Specifics</label>
-        <input type="text" value="${(data.notes || '').replace(/"/g, '&quot;')}" placeholder="Enter notes or training scope here..." class="verification-notes-input w-full bg-slate-950 border border-slate-800 rounded p-2 text-white focus:border-blue-500">
+        <textarea rows="1" oninput="autoGrowTextarea(this)" placeholder="Enter notes or training scope here..." class="verification-notes-input w-full bg-slate-950 border border-slate-800 rounded p-2 text-white focus:border-blue-500 resize-y" style="min-height:36px; overflow:hidden;">${escapeHtmlContent(data.notes || '')}</textarea>
       </div>
       <button onclick="removeVerificationEntry(this)" class="text-slate-500 hover:text-red-400 p-2 rounded hover:bg-slate-800 flex-shrink-0"><i class="fa-solid fa-trash-can"></i></button>
     </div>`;
   container.appendChild(row);
+  autoGrowTextarea(row.querySelector('.verification-notes-input'));
+  enableItemDragAndDrop();
   if (isManualAdd) showImportToast('Verification entry added!');
 }
 
