@@ -3234,8 +3234,10 @@ async function startNewReviewSession() {
    you have the page open, no refresh needed. Call this once on page load,
    after ensureSignedIn().
    ---------------------------------------------------------------------------- */
+let weeklyReviewsChannel = null;
 function subscribeToWeeklyReviews() {
-  supabaseClient
+  if (weeklyReviewsChannel) supabaseClient.removeChannel(weeklyReviewsChannel);
+  weeklyReviewsChannel = supabaseClient
     .channel("weekly_reviews_changes")
     .on(
       "postgres_changes",
@@ -3254,7 +3256,11 @@ function subscribeToWeeklyReviews() {
         showImportToast("A teammate finalized a new review session.");
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        setTimeout(() => subscribeToWeeklyReviews(), 2000);
+      }
+    });
 }
 
 /* ----------------------------------------------------------------------------
@@ -3488,11 +3494,22 @@ async function syncDraftToServer() {
   if (!currentSessionId) return;
   const sessionData = buildSessionDataObject();
   const { error } = await supabaseClient.from("weekly_reviews").update(sessionData).eq("id", currentSessionId);
-  if (error) { console.error(error); return; }
+  if (error) { console.error(error); showImportToast("Sync failed \u2014 your last change may not have saved: " + error.message); return; }
   markDraftSaved();
 }
 
 let pendingRemoteSessionUpdate = null;
+let pendingUpdateSince = null;
+const MAX_DEFERRED_UPDATE_HOLD_MS = 8000;
+
+function applyPendingRemoteUpdateIfAny() {
+  if (pendingRemoteSessionUpdate) {
+    const toApply = pendingRemoteSessionUpdate;
+    pendingRemoteSessionUpdate = null;
+    pendingUpdateSince = null;
+    populateFormFromSession(toApply);
+  }
+}
 
 function isUserActivelyEditingReviewForm() {
   const active = document.activeElement;
@@ -3505,13 +3522,15 @@ function isUserActivelyEditingReviewForm() {
 
 document.addEventListener('focusout', () => {
   setTimeout(() => {
-    if (!isUserActivelyEditingReviewForm() && pendingRemoteSessionUpdate) {
-      const toApply = pendingRemoteSessionUpdate;
-      pendingRemoteSessionUpdate = null;
-      populateFormFromSession(toApply);
-    }
+    if (!isUserActivelyEditingReviewForm()) applyPendingRemoteUpdateIfAny();
   }, 50);
 });
+
+setInterval(() => {
+  if (pendingRemoteSessionUpdate && pendingUpdateSince && (Date.now() - pendingUpdateSince > MAX_DEFERRED_UPDATE_HOLD_MS)) {
+    applyPendingRemoteUpdateIfAny();
+  }
+}, 2000);
 
 function subscribeToActiveDraft(sessionId) {
   if (currentSessionChannel) supabaseClient.removeChannel(currentSessionChannel);
@@ -3524,15 +3543,24 @@ function subscribeToActiveDraft(sessionId) {
         // Never blow away the form while someone has an active field focused here —
         // that's what was kicking users' cursors out mid-keystroke (every debounced
         // auto-save echoes back through this same channel, including our own writes).
-        // Defer and apply the latest version once focus actually leaves the form.
+        // Defer and apply the latest version once focus actually leaves the form,
+        // but never hold it longer than MAX_DEFERRED_UPDATE_HOLD_MS so a continuously
+        // focused form (e.g. tabbing between fields all meeting) doesn't starve everyone
+        // else's live updates indefinitely.
         if (isUserActivelyEditingReviewForm()) {
           pendingRemoteSessionUpdate = payload.new;
+          if (!pendingUpdateSince) pendingUpdateSince = Date.now();
           return;
         }
         populateFormFromSession(payload.new);
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        showImportToast("Live sync disconnected \u2014 reconnecting...");
+        setTimeout(() => { if (currentSessionId === sessionId) subscribeToActiveDraft(sessionId); }, 2000);
+      }
+    });
 }
 
 function unsubscribeFromActiveDraft() {
@@ -3541,6 +3569,7 @@ function unsubscribeFromActiveDraft() {
     currentSessionChannel = null;
   }
   pendingRemoteSessionUpdate = null;
+  pendingUpdateSince = null;
 }
 
 async function checkForActiveDraftOnLoad() {
