@@ -87,17 +87,17 @@
         }
 
         /* Micro Drag & Drop Styling (Smaller Items) */
-        .rolling-task-card, .agenda-field-group {
+        .rolling-task-card, .agenda-field-group, .verification-entry-row {
             transition: transform 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
             user-select: none;
         }
-        .rolling-task-card.item-dragging, .agenda-field-group.item-dragging {
+        .rolling-task-card.item-dragging, .agenda-field-group.item-dragging, .verification-entry-row.item-dragging {
             opacity: 0.4 !important;
             border-style: dashed !important;
             border-color: #f59e0b !important;
             background-color: rgba(15, 23, 42, 0.95) !important;
         }
-        .rolling-task-card.item-drag-over, .agenda-field-group.item-drag-over {
+        .rolling-task-card.item-drag-over, .agenda-field-group.item-drag-over, .verification-entry-row.item-drag-over {
             border-top: 3px solid #38bdf8 !important;
             background-color: rgba(30, 41, 59, 0.9) !important;
         }
@@ -2658,12 +2658,51 @@
         function enableItemDragAndDrop() {
             document.querySelectorAll('.rolling-task-card, .agenda-field-group, .verification-entry-row').forEach(item => {
                 if (item.dataset.itemDragInitialized) return; item.dataset.itemDragInitialized = "true";
-                item.addEventListener('mousedown', (e) => { item.draggable = !!e.target.closest('.drag-handle-item'); });
-                item.addEventListener('dragstart', (e) => { if (!item.draggable) return e.preventDefault(); cleanupAllDragStyles(); draggedItem = item; isDraggingAnyBubble = true; item.classList.add('item-dragging'); });
-                item.addEventListener('dragend', () => { item.draggable = false; cleanupAllDragStyles(); });
-                item.addEventListener('dragover', (e) => { if (draggedItem && draggedItem !== item) { e.preventDefault(); item.classList.add('item-drag-over'); } });
-                item.addEventListener('dragleave', () => item.classList.remove('item-drag-over'));
-                item.addEventListener('drop', (e) => { if (draggedItem && draggedItem !== item) { e.preventDefault(); e.stopPropagation(); const p = item.parentNode; if (p === draggedItem.parentNode) p.insertBefore(draggedItem, Array.from(p.children).indexOf(draggedItem) < Array.from(p.children).indexOf(item) ? item.nextSibling : item); } cleanupAllDragStyles(); });
+                const handle = item.querySelector('.drag-handle-item');
+                if (!handle) return;
+
+                handle.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    const container = item.parentNode;
+                    if (!container) return;
+
+                    cleanupAllDragStyles();
+                    draggedItem = item;
+                    isDraggingAnyBubble = true;
+                    item.classList.add('item-dragging');
+                    let lastOver = null;
+
+                    function onMouseMove(ev) {
+                        const siblings = Array.from(container.children).filter(el => el !== item);
+                        let closestEl = null;
+                        let closestDist = Infinity;
+                        siblings.forEach(sib => {
+                            const rect = sib.getBoundingClientRect();
+                            const centerY = rect.top + rect.height / 2;
+                            const dist = Math.abs(ev.clientY - centerY);
+                            if (dist < closestDist) { closestDist = dist; closestEl = sib; }
+                        });
+                        if (lastOver && lastOver !== closestEl) lastOver.classList.remove('item-drag-over');
+                        if (closestEl) {
+                            closestEl.classList.add('item-drag-over');
+                            lastOver = closestEl;
+                            const rect = closestEl.getBoundingClientRect();
+                            if (ev.clientY < rect.top + rect.height / 2) container.insertBefore(item, closestEl);
+                            else container.insertBefore(item, closestEl.nextSibling);
+                        }
+                    }
+
+                    function onMouseUp() {
+                        document.removeEventListener('mousemove', onMouseMove);
+                        document.removeEventListener('mouseup', onMouseUp);
+                        cleanupAllDragStyles();
+                        draggedItem = null;
+                        isDraggingAnyBubble = false;
+                    }
+
+                    document.addEventListener('mousemove', onMouseMove);
+                    document.addEventListener('mouseup', onMouseUp);
+                });
             });
         }
 
@@ -4037,7 +4076,7 @@ async function finalizeReviewSession() {
   await refreshSavedReviewSessionsDropdown();
   showConfirmationToast("Session Saved!");
 }
-        window.onload = function() {ensureSignedIn().then(() => { refreshSavedReviewSessionsDropdown(); subscribeToWeeklyReviews();checkForActiveDraftOnLoad(); subscribeToLayoutChanges('review-agenda-grid', 'laballey_review_card_order');initPresence();})
+        window.onload = function() {ensureSignedIn().then((session) => { if (!session) { showImportToast("Sign-in required to load your session \u2014 check your email for the link, then refresh this page."); return; } refreshSavedReviewSessionsDropdown(); subscribeToWeeklyReviews();checkForActiveDraftOnLoad(); subscribeToLayoutChanges('review-agenda-grid', 'laballey_review_card_order');initPresence();})
             if(typeof initCharts === 'function') initCharts();
             if(typeof updateCalculations === 'function') updateCalculations();
             if(typeof enableChartDragAndDrop === 'function') enableChartDragAndDrop();
