@@ -539,10 +539,10 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-2 flex-shrink-0">
-                            <select id="orders-in-out-mode" class="text-[11px] px-2 py-1 bg-slate-950 border border-slate-700 text-slate-300 rounded focus:border-sky-500 cursor-pointer">
-                                <option value="ms-all">Mon\u2013Sun, all hours</option>
-                                <option value="mf-all">Mon\u2013Fri, all hours</option>
-                                <option value="mf-work">Mon\u2013Fri, working hours (8am\u20134pm)</option>
+                            <select id="orders-in-out-mode" onchange="loadOrdersInOutChart()" class="text-[11px] px-2 py-1 bg-slate-950 border border-slate-700 text-slate-300 rounded focus:border-sky-500 cursor-pointer">
+                                <option value="ms-all">Mon–Sun, all hours</option>
+                                <option value="mf-all">Mon–Fri, all hours</option>
+                                <option value="mf-work">Mon–Fri, working hours (8am–4pm)</option>
                             </select>
                             <button id="orders-in-out-refresh-btn" onclick="loadOrdersInOutChart()" class="px-2.5 py-1 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 rounded text-[11px] font-semibold transition flex items-center space-x-1">
                                 <i class="fa-solid fa-arrows-rotate text-[10px]"></i>
@@ -554,7 +554,7 @@
                     <div class="h-64 relative">
                         <canvas id="ordersInOutChart"></canvas>
                     </div>
-                    <p class="text-[10px] text-slate-500 mt-1.5">"Working hours" restricts both orders placed and orders shipped to Mon\u2013Fri, 8am\u20134pm Central \u2014 the same production window the Live Queue tool uses elsewhere. This shows a smaller number by design: it's a same-window comparison of demand vs. output while the floor is actually staffed, not total demand.</p>
+                    <p class="text-[10px] text-slate-500 mt-1.5">"Working hours" restricts both orders placed and orders shipped to Mon–Fri, 8am–4pm Central — the same production window the Live Queue tool uses elsewhere. This shows a smaller number by design: it's a same-window comparison of demand vs. output while the floor is actually staffed, not total demand.</p>
                 </div>
             </div>
 
@@ -1932,13 +1932,16 @@
             </div>`;
         }
 
+        let ordersInOutLoading = false;
         async function loadOrdersInOutChart() {
+            if (ordersInOutLoading) return; // ignore a rapid double-trigger (dropdown change + button click, etc.)
+            ordersInOutLoading = true;
             const statusEl = document.getElementById('orders-in-out-status');
             const btn = document.getElementById('orders-in-out-refresh-btn');
             const modeSelect = document.getElementById('orders-in-out-mode');
             const mode = modeSelect ? modeSelect.value : 'ms-all';
             if (btn) btn.disabled = true;
-            if (statusEl) statusEl.innerText = 'Loading from ShipStation \u2014 this can take a few seconds for 8 weeks...';
+            if (statusEl) statusEl.innerText = 'Loading from ShipStation \u2014 this can take a while, one week at a time...';
 
             // Build 8 trailing week windows, oldest first, all anchored to the most
             // recently completed Sunday (or today if today is Sunday) so every mode
@@ -1963,18 +1966,28 @@
             }
 
             try {
-                const results = await Promise.all(weeks.map(async w => {
+                // Fetched one week at a time, not all 8 at once. order-flow.js does two
+                // paginated ShipStation queries per call with built-in rate-limit
+                // backoff (a single 429 can add several seconds of wait) — firing 8 of
+                // those concurrently was overwhelming ShipStation and/or hitting
+                // Netlify's function execution time limit, causing a different random
+                // subset to fail on every attempt. Sequential is slower overall but
+                // reliable, which matters more for a manually-triggered load.
+                const results = [];
+                for (let idx = 0; idx < weeks.length; idx++) {
+                    const w = weeks[idx];
+                    if (statusEl) statusEl.innerText = `Loading week ${idx + 1} of ${weeks.length} from ShipStation...`;
                     try {
                         const url = `https://ops-live-dashboard.netlify.app/.netlify/functions/order-flow?startDate=${w.startDate}&endDate=${w.endDate}` + (workingHoursOnly ? '&workingHoursOnly=true' : '');
                         const res = await fetch(url);
                         const data = await res.json();
                         if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
-                        return { ...w, ordersIn: data.ordersIn, ordersOut: data.ordersOut, error: null };
+                        results.push({ ...w, ordersIn: data.ordersIn, ordersOut: data.ordersOut, error: null });
                     } catch (err) {
                         console.error('order-flow fetch failed for', w.startDate, '-', w.endDate, err);
-                        return { ...w, ordersIn: null, ordersOut: null, error: err.message };
+                        results.push({ ...w, ordersIn: null, ordersOut: null, error: err.message });
                     }
-                }));
+                }
 
                 const failedCount = results.filter(r => r.error).length;
 
@@ -2013,6 +2026,7 @@
                 if (statusEl) statusEl.innerText = 'Failed to load: ' + err.message;
             } finally {
                 if (btn) btn.disabled = false;
+                ordersInOutLoading = false;
             }
         }
 
