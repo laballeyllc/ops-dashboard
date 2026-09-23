@@ -1976,20 +1976,32 @@
                 const results = [];
                 for (let idx = 0; idx < weeks.length; idx++) {
                     const w = weeks[idx];
-                    if (statusEl) statusEl.innerText = `Loading week ${idx + 1} of ${weeks.length} from ShipStation...`;
-                    try {
-                        const url = `https://ops-live-dashboard.netlify.app/.netlify/functions/order-flow?startDate=${w.startDate}&endDate=${w.endDate}` + (workingHoursOnly ? '&workingHoursOnly=true' : '');
-                        const res = await fetch(url);
-                        const data = await res.json();
-                        if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
-                        results.push({ ...w, ordersIn: data.ordersIn, ordersOut: data.ordersOut, error: null });
-                    } catch (err) {
-                        console.error('order-flow fetch failed for', w.startDate, '-', w.endDate, err);
-                        results.push({ ...w, ordersIn: null, ordersOut: null, error: err.message });
+                    const url = `https://ops-live-dashboard.netlify.app/.netlify/functions/order-flow?startDate=${w.startDate}&endDate=${w.endDate}` + (workingHoursOnly ? '&workingHoursOnly=true' : '');
+                    let lastError = null;
+                    let success = null;
+                    for (let attempt = 1; attempt <= 3; attempt++) {
+                        if (statusEl) statusEl.innerText = `Loading week ${idx + 1} of ${weeks.length} from ShipStation` + (attempt > 1 ? ` (retry ${attempt - 1})` : '') + '...';
+                        try {
+                            const res = await fetch(url);
+                            const data = await res.json();
+                            if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
+                            success = { ordersIn: data.ordersIn, ordersOut: data.ordersOut };
+                            break;
+                        } catch (err) {
+                            lastError = err.message;
+                            console.error('order-flow fetch failed for', w.startDate, '-', w.endDate, `(attempt ${attempt})`, err);
+                            if (attempt < 3) await new Promise(r => setTimeout(r, 1500));
+                        }
+                    }
+                    if (success) {
+                        results.push({ ...w, ordersIn: success.ordersIn, ordersOut: success.ordersOut, error: null });
+                    } else {
+                        results.push({ ...w, ordersIn: null, ordersOut: null, error: lastError });
                     }
                 }
 
-                const failedCount = results.filter(r => r.error).length;
+                const failedResults = results.filter(r => r.error);
+                const failedCount = failedResults.length;
 
                 if (ordersInOutChart) { ordersInOutChart.destroy(); ordersInOutChart = null; }
                 const canvas = document.getElementById('ordersInOutChart');
@@ -2017,9 +2029,12 @@
 
                 if (statusEl) {
                     const modeLabel = mode === 'ms-all' ? 'Mon\u2013Sun, all hours' : (mode === 'mf-all' ? 'Mon\u2013Fri, all hours' : 'Mon\u2013Fri, working hours');
-                    statusEl.innerText = (failedCount > 0
-                        ? ('Loaded with ' + failedCount + ' of 8 week' + (failedCount === 1 ? '' : 's') + ' failing \u2014 check console for details. ')
-                        : '') + 'View: ' + modeLabel + '. Last loaded ' + new Date().toLocaleTimeString() + '.';
+                    if (failedCount > 0) {
+                        const detail = failedResults.map(r => `${r.label}: ${r.error}`).join(' \u2014 ');
+                        statusEl.innerText = failedCount + ' of 8 week' + (failedCount === 1 ? '' : 's') + ' failed even after retrying (each week tried up to 3 times). ' + detail + ' View: ' + modeLabel + '. Last attempted ' + new Date().toLocaleTimeString() + '.';
+                    } else {
+                        statusEl.innerText = 'View: ' + modeLabel + '. Last loaded ' + new Date().toLocaleTimeString() + '.';
+                    }
                 }
             } catch (err) {
                 console.error(err);
