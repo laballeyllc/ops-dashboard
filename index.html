@@ -88,17 +88,17 @@
         }
 
         /* Micro Drag & Drop Styling (Smaller Items) */
-        .rolling-task-card, .agenda-field-group, .verification-entry-row {
+        .rolling-task-card, .agenda-field-group, .verification-entry-row, .order-row {
             transition: transform 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
             user-select: none;
         }
-        .rolling-task-card.item-dragging, .agenda-field-group.item-dragging, .verification-entry-row.item-dragging {
+        .rolling-task-card.item-dragging, .agenda-field-group.item-dragging, .verification-entry-row.item-dragging, .order-row.item-dragging {
             opacity: 0.4 !important;
             border-style: dashed !important;
             border-color: #f59e0b !important;
             background-color: rgba(15, 23, 42, 0.95) !important;
         }
-        .rolling-task-card.item-drag-over, .agenda-field-group.item-drag-over, .verification-entry-row.item-drag-over {
+        .rolling-task-card.item-drag-over, .agenda-field-group.item-drag-over, .verification-entry-row.item-drag-over, .order-row.item-drag-over {
             border-top: 3px solid #38bdf8 !important;
             background-color: rgba(30, 41, 59, 0.9) !important;
         }
@@ -829,6 +829,129 @@
                     <input type="text" id="review-attendees-input" placeholder="e.g. John, Sarah, Mike, Alex" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:border-teal-500">
                 </div>
                 <div id="presence-avatars" class="flex -space-x-2 mt-2"></div>
+            </div>
+
+            <!-- End of Week Order Review -->
+            <div id="order-review-block" class="glass-panel p-5 rounded-2xl border border-sky-500/30 space-y-4">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <i class="fa-solid fa-box-open text-sky-400"></i>
+                        <h3 class="text-sm font-bold text-white">End of Week Order Review</h3>
+                        <span class="text-[10px] text-slate-500">"Week before last" fills in automatically from the previous finalized session.</span>
+                    </div>
+                    <span onclick="toggleOrderReviewBlock()" title="Collapse / expand" class="cursor-pointer text-slate-400 hover:text-white text-xs px-2 py-1 rounded hover:bg-slate-800 select-none">
+                        <i class="fa-solid fa-chevron-up" id="order-review-chevron"></i>
+                    </span>
+                </div>
+
+                <div id="order-review-body" class="space-y-5">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                        <!-- Week-over-week counts -->
+                        <div>
+                            <table class="w-full text-xs">
+                                <thead>
+                                    <tr class="text-slate-400 text-[11px]">
+                                        <th class="text-left font-semibold py-1.5 pr-2">End of week</th>
+                                        <th class="font-semibold px-2 w-28 text-center">Last week</th>
+                                        <th class="font-semibold px-2 w-28 text-center">Week before last</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-800">
+                                    <tr>
+                                        <td class="py-1.5 pr-2 text-slate-200">Order Reships</td>
+                                        <td class="px-2 py-1"><input type="number" min="0" step="1" id="or-lw-reships" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-center text-xs text-white font-mono font-bold focus:border-sky-400"></td>
+                                        <td class="px-2 py-1"><input type="number" min="0" step="1" id="or-wbl-reships" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-center text-xs text-slate-300 font-mono focus:border-sky-400"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-1.5 pr-2 text-slate-200">Order Defects</td>
+                                        <td class="px-2 py-1"><input type="number" min="0" step="1" id="or-lw-defects" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-center text-xs text-white font-mono font-bold focus:border-sky-400"></td>
+                                        <td class="px-2 py-1"><input type="number" min="0" step="1" id="or-wbl-defects" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-center text-xs text-slate-300 font-mono focus:border-sky-400"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-1.5 pr-2 text-slate-200">Problem Orders <span class="text-[10px] text-slate-500">(counts the list)</span></td>
+                                        <td class="px-2 py-1 text-center"><span id="or-lw-problem" class="font-mono font-bold text-white text-sm">0</span></td>
+                                        <td class="px-2 py-1"><input type="number" min="0" step="1" id="or-wbl-problem" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-center text-xs text-slate-300 font-mono focus:border-sky-400"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Problem orders list -->
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <h4 class="text-xs font-bold text-slate-300">Problem Orders</h4>
+                                <button onclick="addProblemOrderRow()" class="px-2 py-0.5 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 rounded text-[10px] font-semibold transition flex items-center space-x-1">
+                                    <i class="fa-solid fa-plus text-[9px]"></i>
+                                    <span>Add Order</span>
+                                </button>
+                            </div>
+                            <div id="or-problem-container" class="space-y-1.5"></div>
+                        </div>
+                    </div>
+
+                    <!-- Weekly trend -->
+                    <div>
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                            <h4 class="text-xs font-bold text-slate-300">Weekly Trend
+                                <span class="ml-1 text-[10px] font-normal text-slate-500">each point is the week reported at that meeting (the week before it)</span>
+                            </h4>
+                            <select id="order-trend-weeks" onchange="updateOrderTrendChart()" class="text-[11px] px-2 py-1 bg-slate-950 border border-slate-700 text-slate-300 rounded focus:border-sky-500 cursor-pointer">
+                                <option value="8">Last 8 weeks</option>
+                                <option value="12" selected>Last 12 weeks</option>
+                                <option value="26">Last 26 weeks</option>
+                            </select>
+                        </div>
+                        <div class="relative h-56 rounded-xl border border-slate-800 bg-slate-950/60 p-2">
+                            <canvas id="orderTrendChart"></canvas>
+                            <div id="order-trend-empty" class="absolute inset-0 flex items-center justify-center text-center px-8 text-xs text-slate-500 pointer-events-none">The trend fills in as weekly sessions are finalized.</div>
+                        </div>
+                    </div>
+
+                    <!-- Major orders -->
+                    <div>
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                            <h4 class="text-xs font-bold text-slate-300">
+                                Major Orders &gt;$2500
+                                <span class="ml-2 text-[11px] font-normal text-slate-400">Total Orders: <span id="or-total-orders" class="font-mono font-bold text-white">0</span></span>
+                            </h4>
+                            <div class="flex flex-wrap items-center gap-1.5">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold border bg-emerald-200/25 border-emerald-300/40 text-emerald-100">Shipped</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold border bg-green-500/70 border-green-300/60 text-white">Shipping Monday</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold border bg-yellow-400/80 border-yellow-200/70 text-slate-900">In Progress</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold border bg-orange-500/80 border-orange-300/70 text-white">Production Delay</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold border bg-red-600/80 border-red-300/70 text-white">Supply Delay</span>
+                                <button onclick="sortMajorOrdersBySubtotal()" class="ml-2 px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded text-[10px] font-semibold transition flex items-center space-x-1">
+                                    <i class="fa-solid fa-arrow-down-wide-short text-[9px]"></i>
+                                    <span>Sort by subtotal</span>
+                                </button>
+                                <button onclick="addMajorOrderRow()" class="px-2 py-0.5 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 rounded text-[10px] font-semibold transition flex items-center space-x-1">
+                                    <i class="fa-solid fa-plus text-[9px]"></i>
+                                    <span>Add Order</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 px-1 mb-1 text-[10px] text-slate-500 font-semibold">
+                            <span class="w-5 flex-shrink-0"></span>
+                            <span class="w-24 flex-shrink-0">Order #</span>
+                            <span class="w-16 flex-shrink-0">Order Date</span>
+                            <span class="flex-1">Quantity &amp; SKU</span>
+                            <span class="w-28 flex-shrink-0 text-right">Subtotal</span>
+                            <span class="w-36 flex-shrink-0">Status</span>
+                            <span class="w-8 flex-shrink-0"></span>
+                        </div>
+                        <div id="or-major-container" class="space-y-1.5"></div>
+                        <div class="mt-3 pt-2 border-t border-slate-800 flex flex-wrap justify-end gap-6 text-xs">
+                            <div class="text-right">
+                                <span class="block text-[10px] text-slate-500">Last week total (this list)</span>
+                                <span id="or-lw-major-total" class="font-mono font-bold text-white text-sm">$0.00</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="block text-[10px] text-slate-500">Week before last</span>
+                                <input type="text" inputmode="decimal" id="or-wbl-major-total" placeholder="$0.00" class="w-32 bg-slate-900 border border-slate-800 rounded-lg p-1.5 text-right text-xs text-slate-300 font-mono focus:border-sky-400">
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Unified Agenda Grid Container -->
@@ -2572,7 +2695,7 @@
         function openQuarterModal() { document.getElementById('quarter-date-modal').classList.remove('hidden'); }
         function closeQuarterModal() { document.getElementById('quarter-date-modal').classList.add('hidden'); if (!quarterStartDate) { document.getElementById('date-range-select').value = 'all'; selectedDateRange = 'all'; } }
         function applyQuarterRange(e) { e.preventDefault(); const year = parseInt(document.getElementById('quarter-year-select').value) || 2026; const q = document.getElementById('quarter-q-select').value; let sm = 0, em = 2, ld = 31; if (q==='Q2') { sm=3; em=5; ld=30; } else if (q==='Q3') { sm=6; em=8; ld=30; } else if (q==='Q4') { sm=9; em=11; ld=31; } quarterStartDate = new Date(year, sm, 1); quarterEndDate = new Date(year, em, ld, 23, 59, 59); selectedDateRange = 'quarter'; closeQuarterModal(); updateCalculations(); }
-        function switchTab(tabId) { ['dashboard', 'data', 'review', 'outlook'].forEach(id => { const c = document.getElementById('content-' + id); const b = document.getElementById('tab-' + id); if (id === tabId) { c?.classList.remove('hidden'); if(b) b.className = "tab-btn active px-3.5 py-2 rounded-lg text-xs font-semibold transition-all duration-150 flex items-center space-x-1.5 bg-teal-600 text-white shadow-md"; } else { c?.classList.add('hidden'); if(b) b.className = "tab-btn px-3.5 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all duration-150 flex items-center space-x-1.5 hover:bg-slate-800"; } }); }
+        function switchTab(tabId) { ['dashboard', 'data', 'review', 'outlook'].forEach(id => { const c = document.getElementById('content-' + id); const b = document.getElementById('tab-' + id); if (id === tabId) { c?.classList.remove('hidden'); if(b) b.className = "tab-btn active px-3.5 py-2 rounded-lg text-xs font-semibold transition-all duration-150 flex items-center space-x-1.5 bg-teal-600 text-white shadow-md"; } else { c?.classList.add('hidden'); if(b) b.className = "tab-btn px-3.5 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all duration-150 flex items-center space-x-1.5 hover:bg-slate-800"; } }); if (tabId === 'review') setTimeout(() => { regrowReviewTextareas(); if (orderTrendChart) orderTrendChart.resize(); }, 0); }
         function updateSourceDiagnosticBar() { const t = document.getElementById('active-source-title'); const d = document.getElementById('active-source-details'); if (t && d) { t.innerText = `Active Tab: "${activeSheetName}"`; d.innerText = `Displaying ${operationsData.length} weekly entries across ${customMetricDefinitions.length} metric paths.`; } }
         function updateWorksheetTabDropdown(list) { const s = document.getElementById('worksheet-tab-select'); if (s) s.innerHTML = list.map(n => `<option value="${n}" ${n === activeSheetName ? 'selected' : ''}>${n}</option>`).join(''); }
         function switchWorksheetTab(name) { if (loadedWorkbookSheets[name]) { activeSheetName = name; operationsData = loadedWorkbookSheets[name]; updateCalculations(); } }
@@ -2844,7 +2967,7 @@
         }
 
         function enableItemDragAndDrop() {
-            document.querySelectorAll('.rolling-task-card, .agenda-field-group, .verification-entry-row').forEach(item => {
+            document.querySelectorAll('.rolling-task-card, .agenda-field-group, .verification-entry-row, .order-row').forEach(item => {
                 if (item.dataset.itemDragInitialized) return; item.dataset.itemDragInitialized = "true";
                 const handle = item.querySelector('.drag-handle-item');
                 if (!handle) return;
@@ -2886,6 +3009,7 @@
                         cleanupAllDragStyles();
                         draggedItem = null;
                         isDraggingAnyBubble = false;
+                        scheduleDraftSync();
                     }
 
                     document.addEventListener('mousemove', onMouseMove);
@@ -2968,7 +3092,7 @@ if (abcRotationOverlayChart) { abcRotationOverlayChart.data.labels = weeks; abcR
             };
         }
 
-        function setQCData(data = {}) {
+        function setQCScalars(data = {}) {
             if (document.getElementById('qc-manuals-added')) document.getElementById('qc-manuals-added').value = data.manualsAdded || '';
             if (document.getElementById('qc-manuals-completed')) document.getElementById('qc-manuals-completed').value = data.manualsCompleted || '';
             if (document.getElementById('qc-manuals-total')) document.getElementById('qc-manuals-total').value = data.manualsTotal || '';
@@ -2981,8 +3105,9 @@ if (abcRotationOverlayChart) { abcRotationOverlayChart.data.labels = weeks; abcR
             if (document.getElementById('qc-training-sop-num')) document.getElementById('qc-training-sop-num').value = data.trainingSop || '';
             if (document.getElementById('qc-training-assignees')) document.getElementById('qc-training-assignees').value = data.trainingAssignees || '';
             if (document.getElementById('qc-training-notes')) document.getElementById('qc-training-notes').value = data.trainingNotes || '';
-            setVerificationEntries(data.trainingVerifications || []);
         }
+
+        function setQCData(data = {}) { setQCScalars(data); setVerificationEntries(data.trainingVerifications || []); }
 
         function refreshSavedReviewSessionsDropdown() { const stored = JSON.parse(localStorage.getItem('laballey_weekly_reviews') || '[]'); const s = document.getElementById('review-saved-sessions-select'); if(s) s.innerHTML = `<option value="">-- Recall Past Review Session --</option>` + stored.map(item => `<option value="${item.id}">${item.dateLabel}</option>`).join(''); }
         function saveReviewSession() {
@@ -3139,6 +3264,10 @@ if (abcRotationOverlayChart) { abcRotationOverlayChart.data.labels = weeks; abcR
             refreshSavedReviewSessionsDropdown();
         }
 
+        function regrowReviewTextareas() {
+            document.querySelectorAll('#content-review textarea').forEach(autoGrowTextarea);
+        }
+
         function escapeHtmlContent(str) {
             return String(str === null || str === undefined ? '' : str)
                 .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -3146,12 +3275,13 @@ if (abcRotationOverlayChart) { abcRotationOverlayChart.data.labels = weeks; abcR
 
         function autoGrowTextarea(el) {
             if (!el) return;
+            if (el.getClientRects().length === 0) return;   // hidden (other tab / collapsed): measure later, see regrowReviewTextareas()
             el.style.height = 'auto';
             el.style.height = Math.max(el.scrollHeight, 36) + 'px';
         }
 
         function addRollingTaskCard(taskData = {}) {
-            const container = document.getElementById('rolling-tasks-container'); if (!container) return; const taskId = taskData.id || 'task_' + Date.now();
+            const container = document.getElementById('rolling-tasks-container'); if (!container) return; const taskId = taskData.id || genItemId('task');
             const card = document.createElement('div'); card.className = "rolling-task-card bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2 relative transition hover:border-amber-500/50"; card.dataset.taskId = taskId; card.dataset.ageWeeks = taskData.ageWeeks || 1;
             const statusColors = { 'Open': 'bg-amber-500/20 text-amber-300 border-amber-500/40', 'In Progress': 'bg-blue-500/20 text-blue-300 border-blue-500/40', 'Blocked': 'bg-red-500/20 text-red-300 border-red-500/40', 'Complete': 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' };
             card.innerHTML = `
@@ -3345,36 +3475,7 @@ async function loadSelectedReviewSession(sessionId) {
     return;
   }
 
-  if (document.getElementById("review-date-input")) document.getElementById("review-date-input").value = session.date_label || "";
-  if (document.getElementById("review-leader-input")) document.getElementById("review-leader-input").value = session.leader || "";
-  if (document.getElementById("review-attendees-input")) document.getElementById("review-attendees-input").value = session.attendees || "";
-  setQCData(session.qc_data || {});
-
-  const taskContainer = document.getElementById("rolling-tasks-container");
-  if (taskContainer) {
-    taskContainer.innerHTML = "";
-    if ((session.tasks || []).length === 0) addRollingTaskCard();
-    else session.tasks.forEach(t => addRollingTaskCard(t));
-  }
-
-  REVIEW_AGENDA_SECTIONS.forEach(containerId => {
-    const c = document.getElementById(containerId);
-    if (c) {
-      c.innerHTML = "";
-      const vals = (session.sections || {})[containerId] || [];
-      if (vals.length === 0) addAgendaField(containerId);
-      else vals.forEach(val => addAgendaField(containerId, val));
-    }
-  });
-
-  const ratingContainer = document.getElementById("rating-fields-container");
-  if (ratingContainer) {
-    ratingContainer.innerHTML = "";
-    const rts = session.ratings || [];
-    for (let i = 0; i < Math.max(10, rts.length); i++) addRatingField(rts[i] !== undefined ? rts[i] : "");
-  }
-
-  calculateMeetingRatingAverage();
+  populateFormFromSession(session);
   enterRecallLockedView(session);
   showImportToast("Loaded session!");
 }
@@ -3441,6 +3542,7 @@ function subscribeToWeeklyReviews() {
           (payload.eventType === "UPDATE" && payload.new && payload.new.is_draft === false && payload.old && payload.old.is_draft !== false);
         if (!justFinalized) return;
         refreshSavedReviewSessionsDropdown();
+        refreshOrderTrendHistory();
         showImportToast("A teammate finalized a new review session.");
       }
     )
@@ -3561,6 +3663,7 @@ async function saveAndLockRecalledSession() {
   if (text) text.innerText = `Viewing finalized session: ${document.getElementById('review-date-input')?.value || 'Untitled'} — read-only. (Just updated)`;
   setRecallButtonState('locked');
   await refreshSavedReviewSessionsDropdown();
+  refreshOrderTrendHistory();
   showConfirmationToast("Session updated and locked!");
 }
 
@@ -3576,13 +3679,14 @@ async function exitRecallView() {
 
   if (currentSessionId) {
     const { data: liveSession } = await supabaseClient.from("weekly_reviews").select("*").eq("id", currentSessionId).single();
-    if (liveSession) { populateFormFromSession(liveSession); setActiveDraftBanner(liveSession.date_label); }
+    if (liveSession) { populateFormFromSession(liveSession); syncEngine.resetBase(liveSession); setActiveDraftBanner(liveSession.date_label); }
     subscribeToActiveDraft(currentSessionId);
   } else {
     if (document.getElementById("review-date-input")) document.getElementById("review-date-input").value = "";
     if (document.getElementById("review-leader-input")) document.getElementById("review-leader-input").value = "";
     if (document.getElementById("review-attendees-input")) document.getElementById("review-attendees-input").value = "";
     setQCData({});
+    renderOrderReview({});
     const taskContainer = document.getElementById("rolling-tasks-container");
     if (taskContainer) { taskContainer.innerHTML = ""; addRollingTaskCard(); }
     REVIEW_AGENDA_SECTIONS.forEach(containerId => { const c = document.getElementById(containerId); if (c) { c.innerHTML = ""; addAgendaField(containerId); } });
@@ -3604,7 +3708,7 @@ function buildSessionDataObject() {
     tasks: [],
     sections: {},
     ratings: [],
-    qc_data: getQCData(),
+    qc_data: Object.assign({}, getQCData(), { orderReview: getOrderReview() }),
   };
 
   document.querySelectorAll(".rolling-task-card").forEach(card => {
@@ -3625,7 +3729,7 @@ function buildSessionDataObject() {
     sessionData.sections[containerId] = [];
     const c = document.getElementById(containerId);
     if (c) {
-      c.querySelectorAll(".agenda-field-group").forEach(g => { const val = g.querySelector(".agenda-text-input")?.value.trim(); if (val) { const entry = { text: val, ageWeeks: parseInt(g.dataset.ageWeeks) || 1 }; const ownerEl = g.querySelector(".task-owner-input"); const dateEl = g.querySelector(".task-date-input"); const statusEl = g.querySelector(".task-status-select"); if (ownerEl) entry.owner = ownerEl.value.trim(); if (dateEl) entry.dueDate = dateEl.value; if (statusEl) entry.status = statusEl.value; sessionData.sections[containerId].push(entry); } });
+      c.querySelectorAll(".agenda-field-group").forEach(g => { const val = g.querySelector(".agenda-text-input")?.value.trim(); if (val) { const entry = { id: g.dataset.itemId, text: val, ageWeeks: parseInt(g.dataset.ageWeeks) || 1 }; const ownerEl = g.querySelector(".task-owner-input"); const dateEl = g.querySelector(".task-date-input"); const statusEl = g.querySelector(".task-status-select"); if (ownerEl) entry.owner = ownerEl.value.trim(); if (dateEl) entry.dueDate = dateEl.value; if (statusEl) entry.status = statusEl.value; sessionData.sections[containerId].push(entry); } });
     }
   });
 
@@ -3636,89 +3740,441 @@ function buildSessionDataObject() {
   return sessionData;
 }
 
-function populateFormFromSession(session) {
-  isApplyingRemoteUpdate = true;
+/* SYNC-ENGINE-BEGIN
+   Merge-based live sync for the Weekly Operations Review.
 
-  if (document.getElementById("review-date-input")) document.getElementById("review-date-input").value = session.date_label || "";
-  if (document.getElementById("review-leader-input")) document.getElementById("review-leader-input").value = session.leader || "";
-  if (document.getElementById("review-attendees-input")) document.getElementById("review-attendees-input").value = session.attendees || "";
-  setQCData(session.qc_data || {});
+   Why this exists: the old design saved the WHOLE session from whichever screen
+   typed last (so one person's stale copy of a section overwrote a teammate's
+   edits) and rebuilt the whole form on every incoming change (so the field you
+   were typing in got destroyed). This engine instead:
+     1. splits a session into independent "units" (meta, tasks, ratings, qc,
+        verification list, order review, and each agenda section),
+     2. on every save, fetches the latest server copy and THREE-WAY MERGES
+        (what we last synced  +  what's on my screen  +  what's on the server),
+        item-by-item using each item's id, so concurrent edits to different
+        items / sections never overwrite each other,
+     3. only ever re-renders a unit when nobody is typing inside it,
+     4. writes with an optimistic version check (_rev) and re-merges if
+        someone else wrote in between.
+*/
+const SYNC_QC_SCALAR_KEYS = [
+  'manualsAdded', 'manualsCompleted', 'manualsTotal',
+  'sdsAdded', 'sdsRevised', 'sdsCompleted', 'sdsTotal',
+  'newProductsTotal', 'trainingSystem', 'trainingSop', 'trainingAssignees', 'trainingNotes'
+];
 
-  const taskContainer = document.getElementById("rolling-tasks-container");
-  if (taskContainer) {
-    taskContainer.innerHTML = "";
-    if ((session.tasks || []).length === 0) addRollingTaskCard();
-    else session.tasks.forEach(t => addRollingTaskCard(t));
+function syncStable(v) {
+  if (Array.isArray(v)) return '[' + v.map(syncStable).join(',') + ']';
+  if (v && typeof v === 'object') {
+    return '{' + Object.keys(v).filter(k => v[k] !== undefined).sort()
+      .map(k => JSON.stringify(k) + ':' + syncStable(v[k])).join(',') + '}';
   }
+  return JSON.stringify(v === undefined ? null : v);
+}
+function syncEqual(a, b) { return syncStable(a) === syncStable(b); }
+function syncClone(v) { return v === undefined ? undefined : JSON.parse(JSON.stringify(v)); }
+function syncStr(v) { return (v === undefined || v === null) ? '' : String(v); }
 
-  REVIEW_AGENDA_SECTIONS.forEach(containerId => {
-    const c = document.getElementById(containerId);
-    if (c) {
-      c.innerHTML = "";
-      const vals = (session.sections || {})[containerId] || [];
-      if (vals.length === 0) addAgendaField(containerId);
-      else vals.forEach(val => addAgendaField(containerId, val));
-    }
+// Items saved before ids existed get a deterministic id (same on every screen),
+// so two people opening the same old session don't invent different ids.
+function syncEnsureIds(list, prefix) {
+  return (Array.isArray(list) ? list : []).map((it, i) =>
+    Object.assign({}, it, { id: (it && it.id) ? String(it.id) : 'legacy-' + prefix + '-' + i }));
+}
+function syncCanonTask(t) {
+  return { id: String(t.id), task: syncStr(t.task), owner: syncStr(t.owner), dueDate: syncStr(t.dueDate),
+           status: syncStr(t.status) || 'Open', ageWeeks: parseInt(t.ageWeeks) || 1 };
+}
+function syncCanonSecItem(it, full) {
+  const o = { id: String(it.id), text: syncStr(it.text), ageWeeks: parseInt(it.ageWeeks) || 1 };
+  if (full) { o.owner = syncStr(it.owner); o.dueDate = syncStr(it.dueDate); o.status = syncStr(it.status) || 'Open'; }
+  return o;
+}
+function syncCanonVerif(v) {
+  return { id: String(v.id), system: syncStr(v.system) || 'QMS', sop: syncStr(v.sop),
+           assignees: syncStr(v.assignees), notes: syncStr(v.notes) };
+}
+function syncCanonOrders(o) {
+  o = o || {};
+  const lw = o.lastWeek || {}, wb = o.weekBeforeLast || {};
+  return {
+    lastWeek: { reships: syncStr(lw.reships), defects: syncStr(lw.defects) },
+    weekBeforeLast: { reships: syncStr(wb.reships), defects: syncStr(wb.defects),
+                      problem: syncStr(wb.problem), majorTotal: syncStr(wb.majorTotal) },
+    problemOrders: syncEnsureIds(o.problemOrders, 'po')
+      .map(p => ({ id: String(p.id), order: syncStr(p.order), note: syncStr(p.note) }))
+      .filter(p => (p.order + p.note).trim() !== ''),
+    majorOrders: syncEnsureIds(o.majorOrders, 'mo')
+      .map(m => ({ id: String(m.id), order: syncStr(m.order), date: syncStr(m.date), qtySku: syncStr(m.qtySku),
+                   subtotal: syncStr(m.subtotal), status: syncStr(m.status) }))
+      .filter(m => (m.order + m.date + m.qtySku + m.subtotal).trim() !== ''),
+  };
+}
+
+function syncRowToUnits(row, cfg) {
+  row = row || {};
+  const qc = row.qc_data || {};
+  const full = new Set(cfg.fullSectionIds || []);
+  const units = {
+    meta: { date_label: syncStr(row.date_label), leader: syncStr(row.leader), attendees: syncStr(row.attendees) },
+    tasks: syncEnsureIds(row.tasks, 'task').map(syncCanonTask).filter(t => t.task.trim() !== ''),
+    ratings: (Array.isArray(row.ratings) ? row.ratings : []).map(syncStr).filter(r => r !== ''),
+    qc: {},
+    verif: syncEnsureIds(qc.trainingVerifications, 'verif').map(syncCanonVerif)
+      .filter(v => (v.sop + v.assignees + v.notes).trim() !== ''),
+    orders: syncCanonOrders(qc.orderReview),
+  };
+  SYNC_QC_SCALAR_KEYS.forEach(k => {
+    units.qc[k] = (k === 'trainingSystem') ? (syncStr(qc[k]) || 'QMS') : syncStr(qc[k]);
   });
+  (cfg.sectionIds || []).forEach(id => {
+    units['sec:' + id] = syncEnsureIds((row.sections || {})[id], id)
+      .map(it => syncCanonSecItem(it, full.has(id))).filter(it => it.text.trim() !== '');
+  });
+  return units;
+}
 
-  const ratingContainer = document.getElementById("rating-fields-container");
-  if (ratingContainer) {
-    ratingContainer.innerHTML = "";
-    const rts = session.ratings || [];
-    for (let i = 0; i < Math.max(10, rts.length); i++) addRatingField(rts[i] !== undefined ? rts[i] : "");
+function syncUnitsToRow(units, rev, cfg) {
+  const sections = {};
+  (cfg.sectionIds || []).forEach(id => { sections[id] = units['sec:' + id] || []; });
+  return {
+    date_label: units.meta.date_label, leader: units.meta.leader, attendees: units.meta.attendees,
+    tasks: units.tasks, sections: sections, ratings: units.ratings,
+    qc_data: Object.assign({}, units.qc, { trainingVerifications: units.verif, orderReview: units.orders, _rev: rev }),
+  };
+}
+
+function syncRevOf(row) {
+  const r = row && row.qc_data && row.qc_data._rev;
+  return Number(r) || 0;
+}
+
+function syncIsIdArray(a) {
+  return Array.isArray(a) && a.every(x => x && typeof x === 'object' && !Array.isArray(x) && x.id !== undefined);
+}
+function syncIsPlainObject(o) { return o && typeof o === 'object' && !Array.isArray(o); }
+
+// Generic three-way merge.
+//  base   = what this screen last synced with the server
+//  local  = what's on this screen right now
+//  server = what's on the server right now
+function syncMergeValue(base, local, server) {
+  if (syncEqual(local, server)) return local;      // already agree
+  if (syncEqual(local, base)) return server;       // I changed nothing -> take theirs
+  if (syncEqual(server, base)) return local;       // they changed nothing -> keep mine
+  // both sides changed, differently
+  if (syncIsIdArray(local) && syncIsIdArray(server)) {
+    return syncMergeIdArrays(syncIsIdArray(base) ? base : [], local, server);
+  }
+  if (syncIsPlainObject(local) && syncIsPlainObject(server)) {
+    const b = syncIsPlainObject(base) ? base : {};
+    const out = {};
+    const keys = new Set([...Object.keys(local), ...Object.keys(server)]);
+    keys.forEach(k => {
+      const v = syncMergeValue(b[k], local[k], server[k]);
+      if (v !== undefined) out[k] = v;
+    });
+    return out;
+  }
+  return local; // same scalar edited by both: last writer (this screen) wins
+}
+
+function syncMergeIdArrays(base, local, server) {
+  const index = arr => { const m = new Map(); arr.forEach(x => m.set(String(x.id), x)); return m; };
+  const B = index(base), L = index(local), S = index(server);
+
+  // Did the person on this screen drag items into a new order?
+  const baseIdsStillHere = base.map(x => String(x.id)).filter(id => L.has(id));
+  const localOrderOfThose = local.map(x => String(x.id)).filter(id => B.has(id));
+  const reordered = JSON.stringify(baseIdsStillHere) !== JSON.stringify(localOrderOfThose);
+
+  const decide = id => {
+    const l = L.get(id), s = S.get(id), b = B.get(id);
+    if (l && s) return syncMergeValue(b, l, s);
+    if (l && !s) {                       // only I have it
+      if (!b) return l;                  //   I added it
+      return syncEqual(l, b) ? null : l; //   they deleted it: honor that unless I edited it
+    }
+    if (!l && s) return b ? null : s;    // only they have it: they added it / I deleted it
+    return null;
+  };
+
+  const skeleton = reordered ? local : server;
+  const other = reordered ? server : local;
+  const out = [], seen = new Set();
+  skeleton.concat(other).forEach(it => {
+    const id = String(it.id);
+    if (seen.has(id)) return;
+    seen.add(id);
+    const v = decide(id);
+    if (v) out.push(v);
+  });
+  return out;
+}
+
+function syncMergeUnits(base, local, server) {
+  const out = {};
+  const keys = new Set([...Object.keys(local), ...Object.keys(server)]);
+  keys.forEach(k => { out[k] = syncMergeValue(base ? base[k] : undefined, local[k], server[k]); });
+  return out;
+}
+
+/* io = {
+     sectionIds, fullSectionIds,
+     getSessionId(), isRecalled(),
+     fetchRow() -> {row, error},
+     writeRow(serverRow, payload) -> {row} | {conflict:true} | {error},
+     readLocalUnits(), renderUnit(unit, value), unitHasFocus(unit),
+     toast(msg), onSaved(), onRemoteFinalized(row), schedule()
+   } */
+function createSyncEngine(io) {
+  const cfg = { get sectionIds() { return io.sectionIds; }, get fullSectionIds() { return io.fullSectionIds; } };
+  let base = null, lastRow = null, deferred = false, dirty = false, busy = 0;
+  let chain = Promise.resolve();
+
+  function rowUnits(row) { return syncRowToUnits(row, cfg); }
+
+  function applyAfterSync(merged, localAtMerge) {
+    const localNow = io.readLocalUnits();
+    Object.keys(merged).forEach(u => {
+      // the person kept typing in this unit while we were syncing: leave it for the next cycle
+      if (!syncEqual(localNow[u], localAtMerge[u])) return;
+      if (syncEqual(merged[u], localNow[u])) { base[u] = syncClone(merged[u]); return; }
+      if (io.unitHasFocus(u)) { deferred = true; return; }
+      io.renderUnit(u, syncClone(merged[u]));
+      base[u] = syncClone(merged[u]);
+    });
   }
 
-  calculateMeetingRatingAverage();
-  isApplyingRemoteUpdate = false;
+  async function doSync() {
+    const sid = io.getSessionId();
+    if (!sid || io.isRecalled()) return true;
+    busy++;
+    dirty = false;
+    try {
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const fr = await io.fetchRow();
+        if (!fr || fr.error || !fr.row) {
+          io.toast('Sync failed \u2014 ' + ((fr && fr.error && fr.error.message) || 'could not reach the server'));
+          return false;
+        }
+        const server = fr.row;
+        if (server.is_draft === false) { io.onRemoteFinalized(server); return true; }
+        const serverUnits = rowUnits(server);
+        const localAtMerge = io.readLocalUnits();
+        if (!base) base = syncClone(serverUnits);
+        const merged = syncMergeUnits(base, localAtMerge, serverUnits);
+        let rowNow = server;
+        if (!syncEqual(merged, serverUnits)) {
+          const payload = syncUnitsToRow(merged, syncRevOf(server) + 1, cfg);
+          const res = await io.writeRow(server, payload);
+          if (res && res.conflict) continue;           // someone wrote in between: re-fetch and re-merge
+          if (!res || res.error) {
+            io.toast('Sync failed \u2014 your last change may not have saved: ' + ((res && res.error && res.error.message) || 'unknown error'));
+            return false;
+          }
+          rowNow = res.row || Object.assign({}, server, payload);
+          io.onSaved();
+        }
+        lastRow = rowNow;
+        applyAfterSync(merged, localAtMerge);
+        return true;
+      }
+      dirty = true;
+      io.toast('Sync is busy \u2014 retrying in a moment.');
+      return false;
+    } catch (e) {
+      console.error(e);
+      io.toast('Sync error: ' + e.message);
+      return false;
+    } finally {
+      busy--;
+      if (dirty) io.schedule();
+    }
+  }
+
+  const engine = {
+    resetBase(row) { base = syncClone(rowUnits(row)); lastRow = row; deferred = false; },
+    clear() { base = null; lastRow = null; deferred = false; dirty = false; },
+    markDirty() { dirty = true; },
+    isDirty() { return dirty; },
+    isBusy() { return busy > 0; },
+    hasDeferred() { return deferred; },
+    syncNow() { const run = chain.then(doSync); chain = run.catch(() => {}); return run; },
+
+    // An update from someone else (realtime event, or the safety-net poll). Never writes.
+    reconcile(row) {
+      if (!row || row.id !== io.getSessionId() || io.isRecalled()) return;
+      if (row.is_draft === false) { io.onRemoteFinalized(row); return; }
+      if (lastRow && syncRevOf(row) < syncRevOf(lastRow)) return;   // older than what we already have
+      const serverUnits = rowUnits(row);
+      if (!base) { base = syncClone(serverUnits); lastRow = row; return; }
+      lastRow = row;
+      const local = io.readLocalUnits();
+      let needSave = false;
+      Object.keys(serverUnits).forEach(u => {
+        if (syncEqual(serverUnits[u], base[u])) return;           // nothing new from others in this unit
+        const mergedU = syncMergeValue(base[u], local[u], serverUnits[u]);
+        if (io.unitHasFocus(u)) { deferred = true; return; }      // never rebuild what's being typed in
+        if (!syncEqual(mergedU, local[u])) io.renderUnit(u, syncClone(mergedU));
+        base[u] = syncClone(serverUnits[u]);
+        if (!syncEqual(mergedU, serverUnits[u])) needSave = true; // my unsaved edits are still on top
+      });
+      if (needSave) io.schedule();
+    },
+
+    // Called when focus leaves a field: apply anything that was held back while typing.
+    flushDeferred() {
+      if (deferred && lastRow) { deferred = false; engine.reconcile(lastRow); }
+    },
+  };
+  return engine;
+}
+/* SYNC-ENGINE-END */
+
+
+/* ---------------------------------------------------------------------------
+   Page bindings for the sync engine (DOM + Supabase)
+   --------------------------------------------------------------------------- */
+function genItemId(prefix) {
+  return (prefix || 'i') + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
-function scheduleDraftSync() {
-  if (isApplyingRemoteUpdate || !currentSessionId) return;
-  clearTimeout(draftSyncTimer);
-  draftSyncTimer = setTimeout(syncDraftToServer, 600);
+let finalizingNow = false;
+let syncCasSupported = true;
+function SYNC_CFG() { return { sectionIds: REVIEW_AGENDA_SECTIONS, fullSectionIds: FULL_TRACKING_SECTIONS }; }
+
+// Optimistic-locked write: only succeeds if nobody else saved since we fetched (qc_data._rev unchanged).
+async function syncWriteRow(server, payload) {
+  const rev = server.qc_data && server.qc_data._rev;
+  let q = supabaseClient.from("weekly_reviews").update(payload).eq("id", server.id);
+  if (syncCasSupported) {
+    q = (rev === undefined || rev === null) ? q.is("qc_data->>_rev", null) : q.eq("qc_data->>_rev", String(rev));
+  }
+  const { data, error } = await q.select();
+  if (error) {
+    if (syncCasSupported) {            // if the version filter itself is rejected, fall back to plain merge-then-write
+      syncCasSupported = false;
+      console.warn("Optimistic-lock filter unavailable, falling back:", error.message);
+      return syncWriteRow(server, payload);
+    }
+    return { error };
+  }
+  if (!data || data.length === 0) return { conflict: true };
+  return { row: data[0] };
 }
 
-async function syncDraftToServer() {
-  if (!currentSessionId) return;
-  const sessionData = buildSessionDataObject();
-  const { error } = await supabaseClient.from("weekly_reviews").update(sessionData).eq("id", currentSessionId);
-  if (error) { console.error(error); showImportToast("Sync failed \u2014 your last change may not have saved: " + error.message); return; }
-  markDraftSaved();
+// Is someone typing (or dragging) inside this unit right now? If so it must never be rebuilt.
+function syncUnitHasFocus(u) {
+  if (typeof isDraggingAnyBubble !== 'undefined' && isDraggingAnyBubble) return true;
+  const a = document.activeElement;
+  if (!a || !/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return false;
+  if (u === 'meta') return a.id === 'review-date-input' || a.id === 'review-leader-input' || a.id === 'review-attendees-input';
+  if (u === 'qc') return typeof a.id === 'string' && a.id.indexOf('qc-') === 0;
+  let root = null;
+  if (u === 'tasks') root = document.getElementById('rolling-tasks-container');
+  else if (u === 'ratings') root = document.getElementById('rating-fields-container');
+  else if (u === 'verif') root = document.getElementById('training-verification-container');
+  else if (u === 'orders') root = document.getElementById('order-review-block');
+  else if (u.indexOf('sec:') === 0) root = document.getElementById(u.slice(4));
+  return !!(root && root.contains(a));
 }
 
-let pendingRemoteSessionUpdate = null;
-let pendingUpdateSince = null;
-const MAX_DEFERRED_UPDATE_HOLD_MS = 8000;
-
-function applyPendingRemoteUpdateIfAny() {
-  if (pendingRemoteSessionUpdate) {
-    const toApply = pendingRemoteSessionUpdate;
-    pendingRemoteSessionUpdate = null;
-    pendingUpdateSince = null;
-    populateFormFromSession(toApply);
+function syncRenderUnit(u, v) {
+  const prev = isApplyingRemoteUpdate;
+  isApplyingRemoteUpdate = true;
+  try {
+    if (u === 'meta') {
+      const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+      set('review-date-input', v.date_label); set('review-leader-input', v.leader); set('review-attendees-input', v.attendees);
+    } else if (u === 'qc') {
+      setQCScalars(v);
+    } else if (u === 'verif') {
+      setVerificationEntries(v);
+    } else if (u === 'tasks') {
+      const c = document.getElementById('rolling-tasks-container');
+      if (c) { c.innerHTML = ''; if (!v.length) addRollingTaskCard(); else v.forEach(t => addRollingTaskCard(t)); }
+    } else if (u === 'ratings') {
+      const c = document.getElementById('rating-fields-container');
+      if (c) { c.innerHTML = ''; for (let i = 0; i < Math.max(10, v.length); i++) addRatingField(v[i] !== undefined ? v[i] : ''); }
+      calculateMeetingRatingAverage();
+    } else if (u === 'orders') {
+      renderOrderReview(v);
+    } else if (u.indexOf('sec:') === 0) {
+      const id = u.slice(4), c = document.getElementById(id);
+      if (c) { c.innerHTML = ''; if (!v.length) addAgendaField(id); else v.forEach(it => addAgendaField(id, it)); }
+    }
+  } finally {
+    isApplyingRemoteUpdate = prev;
   }
 }
 
-function isUserActivelyEditingReviewForm() {
-  const active = document.activeElement;
-  if (!active) return false;
-  const tag = active.tagName;
-  if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') return false;
-  const wrapper = document.getElementById('review-lockable-content');
-  return wrapper ? wrapper.contains(active) : false;
+// Full (re)load of the form from a saved session row — used when joining, recalling, or returning to a live session.
+function populateFormFromSession(session) {
+  const units = syncRowToUnits(session, SYNC_CFG());
+  ['meta', 'qc', 'verif', 'tasks'].concat(REVIEW_AGENDA_SECTIONS.map(id => 'sec:' + id)).concat(['ratings', 'orders'])
+    .forEach(u => syncRenderUnit(u, units[u]));
 }
 
-document.addEventListener('focusout', () => {
-  setTimeout(() => {
-    if (!isUserActivelyEditingReviewForm()) applyPendingRemoteUpdateIfAny();
-  }, 50);
+function handleRemoteFinalized(row) {
+  if (finalizingNow || !currentSessionId) return;
+  unsubscribeFromActiveDraft();
+  currentSessionId = null;
+  setActiveDraftBanner(null);
+  showImportToast('This session was finalized by a teammate. Open it from "Recall Past Review Session" to view it.');
+  refreshSavedReviewSessionsDropdown();
+  refreshOrderTrendHistory();
+}
+
+const syncEngine = createSyncEngine({
+  get sectionIds() { return REVIEW_AGENDA_SECTIONS; },
+  get fullSectionIds() { return FULL_TRACKING_SECTIONS; },
+  getSessionId: () => currentSessionId,
+  isRecalled: () => !!recalledSessionId,
+  fetchRow: async () => {
+    const { data, error } = await supabaseClient.from("weekly_reviews").select("*").eq("id", currentSessionId).single();
+    return { row: data, error };
+  },
+  writeRow: syncWriteRow,
+  readLocalUnits: () => syncRowToUnits(buildSessionDataObject(), SYNC_CFG()),
+  renderUnit: syncRenderUnit,
+  unitHasFocus: syncUnitHasFocus,
+  toast: (m) => showImportToast(m),
+  onSaved: () => markDraftSaved(),
+  onRemoteFinalized: handleRemoteFinalized,
+  schedule: () => scheduleDraftSync(),
 });
 
-setInterval(() => {
-  if (pendingRemoteSessionUpdate && pendingUpdateSince && (Date.now() - pendingUpdateSince > MAX_DEFERRED_UPDATE_HOLD_MS)) {
-    applyPendingRemoteUpdateIfAny();
-  }
-}, 2000);
+function scheduleDraftSync() {
+  if (isApplyingRemoteUpdate || !currentSessionId || recalledSessionId) return;
+  syncEngine.markDirty();
+  clearTimeout(draftSyncTimer);
+  draftSyncTimer = setTimeout(() => syncEngine.syncNow(), 1000);
+}
+
+// Leaving a field: save right away, and catch up on anything that was held back while you were typing.
+document.addEventListener('focusout', () => {
+  setTimeout(() => {
+    syncEngine.flushDeferred();
+    if (syncEngine.isDirty() && currentSessionId && !recalledSessionId) {
+      clearTimeout(draftSyncTimer);
+      draftSyncTimer = setTimeout(() => syncEngine.syncNow(), 250);
+    }
+  }, 60);
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && syncEngine.isDirty() && currentSessionId && !recalledSessionId) syncEngine.syncNow();
+});
+
+// Safety net: even if the live connection silently drops, every screen re-checks the server every 15 seconds.
+async function pollActiveSession() {
+  if (!currentSessionId || recalledSessionId || syncEngine.isBusy()) return;
+  try {
+    const { data } = await supabaseClient.from("weekly_reviews").select("*").eq("id", currentSessionId).single();
+    if (data) syncEngine.reconcile(data);
+  } catch (e) { console.error(e); }
+}
+setInterval(pollActiveSession, 15000);
 
 function subscribeToActiveDraft(sessionId) {
   if (currentSessionChannel) supabaseClient.removeChannel(currentSessionChannel);
@@ -3728,25 +4184,18 @@ function subscribeToActiveDraft(sessionId) {
       "postgres_changes",
       { event: "UPDATE", schema: "public", table: "weekly_reviews", filter: `id=eq.${sessionId}` },
       payload => {
-        // Never blow away the form while someone has an active field focused here —
-        // that's what was kicking users' cursors out mid-keystroke (every debounced
-        // auto-save echoes back through this same channel, including our own writes).
-        // Defer and apply the latest version once focus actually leaves the form,
-        // but never hold it longer than MAX_DEFERRED_UPDATE_HOLD_MS so a continuously
-        // focused form (e.g. tabbing between fields all meeting) doesn't starve everyone
-        // else's live updates indefinitely.
-        if (isUserActivelyEditingReviewForm()) {
-          pendingRemoteSessionUpdate = payload.new;
-          if (!pendingUpdateSince) pendingUpdateSince = Date.now();
-          return;
-        }
-        populateFormFromSession(payload.new);
+        const n = payload.new;
+        // Large unchanged columns can be left out of a realtime payload; if so, fetch the full row instead.
+        if (n && n.tasks !== undefined && n.sections !== undefined && n.qc_data !== undefined) syncEngine.reconcile(n);
+        else pollActiveSession();
       }
     )
     .subscribe((status) => {
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         showImportToast("Live sync disconnected \u2014 reconnecting...");
         setTimeout(() => { if (currentSessionId === sessionId) subscribeToActiveDraft(sessionId); }, 2000);
+      } else if (status === 'SUBSCRIBED') {
+        pollActiveSession();           // catch up on anything missed while (re)connecting
       }
     });
 }
@@ -3756,9 +4205,297 @@ function unsubscribeFromActiveDraft() {
     supabaseClient.removeChannel(currentSessionChannel);
     currentSessionChannel = null;
   }
-  pendingRemoteSessionUpdate = null;
-  pendingUpdateSince = null;
+  clearTimeout(draftSyncTimer);
+  syncEngine.clear();
 }
+
+/* ---------------------------------------------------------------------------
+   End of Week Order Review block
+   --------------------------------------------------------------------------- */
+const ORDER_STATUS_OPTIONS = ['', 'Shipped', 'Shipping Monday', 'In Progress', 'Production Delay', 'Supply Delay'];
+const ORDER_STATUS_STYLES = {
+  '': 'bg-slate-950 border-slate-800 text-white',
+  'Shipped': 'bg-emerald-200/25 border-emerald-300/40 text-emerald-100',
+  'Shipping Monday': 'bg-green-500/70 border-green-300/60 text-white',
+  'In Progress': 'bg-yellow-400/80 border-yellow-200/70 text-slate-900',
+  'Production Delay': 'bg-orange-500/80 border-orange-300/70 text-white',
+  'Supply Delay': 'bg-red-600/80 border-red-300/70 text-white',
+};
+const ORDER_MO_BASE = 'mo-order w-24 flex-shrink-0 border rounded-lg p-2 text-xs font-mono font-bold focus:border-sky-400 ';
+
+function orderAttr(s) {
+  return String(s === undefined || s === null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+function parseMoney(s) {
+  const n = parseFloat(String(s === undefined || s === null ? '' : s).replace(/[^0-9.\-]/g, ''));
+  return isNaN(n) ? 0 : n;
+}
+function fmtMoney(n) {
+  return '$' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function computeOrderReviewSummary(o) {
+  return {
+    problem: o.problemOrders.length,
+    majorTotal: o.majorOrders.reduce((sum, m) => sum + parseMoney(m.subtotal), 0),
+    totalOrders: o.majorOrders.filter(m => m.order.trim() !== '').length,
+  };
+}
+// "Week before last" auto-fills from the most recent finalized session's "Last week" figures.
+function deriveWeekBeforeLast(session) {
+  const raw = session && session.qc_data && session.qc_data.orderReview;
+  if (!raw) return { reships: '', defects: '', problem: '', majorTotal: '' };
+  const o = syncCanonOrders(raw), s = computeOrderReviewSummary(o);
+  return { reships: o.lastWeek.reships, defects: o.lastWeek.defects, problem: String(s.problem), majorTotal: fmtMoney(s.majorTotal) };
+}
+
+function addProblemOrderRow(data) {
+  const c = document.getElementById('or-problem-container'); if (!c) return;
+  data = data || {};
+  const row = document.createElement('div');
+  row.className = 'order-row problem-order-row flex items-start gap-2 p-1 bg-slate-900/80 rounded-lg border border-slate-800 hover:border-slate-700 transition';
+  row.dataset.itemId = data.id ? String(data.id) : genItemId('po');
+  row.innerHTML = `
+    <i class="fa-solid fa-ellipsis-vertical text-slate-500 hover:text-amber-400 drag-handle-item text-xs p-1 mt-2 flex-shrink-0 cursor-grab"></i>
+    <input type="text" value="${orderAttr(data.order)}" placeholder="Order #" class="po-order w-24 flex-shrink-0 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white font-mono font-bold focus:border-sky-400">
+    <textarea rows="1" oninput="autoGrowTextarea(this)" placeholder="SKU / PO / ETA / what happened..." class="po-note flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white font-sans resize-y focus:border-sky-400" style="min-height:34px; overflow:hidden;">${escapeHtmlContent(data.note)}</textarea>
+    <button onclick="removeOrderRow(this)" class="text-slate-500 hover:text-red-400 p-1.5 mt-1 rounded hover:bg-slate-800 flex-shrink-0"><i class="fa-solid fa-trash-can text-xs"></i></button>`;
+  c.appendChild(row);
+  autoGrowTextarea(row.querySelector('.po-note'));
+  enableItemDragAndDrop();
+}
+
+function addMajorOrderRow(data) {
+  const c = document.getElementById('or-major-container'); if (!c) return;
+  data = data || {};
+  const status = data.status || '';
+  const row = document.createElement('div');
+  row.className = 'order-row major-order-row flex items-start gap-2 p-1 bg-slate-900/80 rounded-lg border border-slate-800 hover:border-slate-700 transition';
+  row.dataset.itemId = data.id ? String(data.id) : genItemId('mo');
+  row.innerHTML = `
+    <i class="fa-solid fa-ellipsis-vertical text-slate-500 hover:text-amber-400 drag-handle-item text-xs p-1 mt-2 flex-shrink-0 cursor-grab"></i>
+    <input type="text" value="${orderAttr(data.order)}" placeholder="Order #" class="${ORDER_MO_BASE}${ORDER_STATUS_STYLES[status] || ORDER_STATUS_STYLES['']}">
+    <input type="text" value="${orderAttr(data.date)}" placeholder="10/8" class="mo-date w-16 flex-shrink-0 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white font-mono focus:border-sky-400">
+    <textarea rows="1" oninput="autoGrowTextarea(this)" placeholder="Quantity & SKU" class="mo-qty flex-1 min-w-0 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white font-sans resize-y focus:border-sky-400" style="min-height:34px; overflow:hidden;">${escapeHtmlContent(data.qtySku)}</textarea>
+    <input type="text" inputmode="decimal" value="${orderAttr(data.subtotal)}" placeholder="$0.00" class="mo-subtotal w-28 flex-shrink-0 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white font-mono text-right focus:border-sky-400">
+    <select onchange="styleMajorOrderStatus(this)" class="mo-status w-36 flex-shrink-0 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 cursor-pointer focus:border-sky-400">
+      ${ORDER_STATUS_OPTIONS.map(o => `<option value="${o}" ${o === status ? 'selected' : ''}>${o || '\u2014 status \u2014'}</option>`).join('')}
+    </select>
+    <button onclick="removeOrderRow(this)" class="text-slate-500 hover:text-red-400 p-1.5 mt-1 rounded hover:bg-slate-800 flex-shrink-0"><i class="fa-solid fa-trash-can text-xs"></i></button>`;
+  c.appendChild(row);
+  autoGrowTextarea(row.querySelector('.mo-qty'));
+  enableItemDragAndDrop();
+}
+
+function styleMajorOrderStatus(sel) {
+  const row = sel.closest('.major-order-row');
+  const inp = row && row.querySelector('.mo-order');
+  if (inp) inp.className = ORDER_MO_BASE + (ORDER_STATUS_STYLES[sel.value] || ORDER_STATUS_STYLES['']);
+}
+
+function removeOrderRow(btn) {
+  if (!window.confirm('Remove this row? This removes it for everyone in the shared session.')) return;
+  const row = btn.closest('.order-row');
+  const container = row && row.parentNode;
+  if (row) row.remove();
+  if (container && container.children.length === 0) {
+    if (container.id === 'or-problem-container') addProblemOrderRow(); else addMajorOrderRow();
+  }
+  recalcOrderReviewTotals();
+  scheduleDraftSync();
+}
+
+function getOrderReview() {
+  const val = id => (document.getElementById(id)?.value || '').trim();
+  const q = (row, sel) => (row.querySelector(sel)?.value || '').trim();
+  return {
+    lastWeek: { reships: val('or-lw-reships'), defects: val('or-lw-defects') },
+    weekBeforeLast: { reships: val('or-wbl-reships'), defects: val('or-wbl-defects'), problem: val('or-wbl-problem'), majorTotal: val('or-wbl-major-total') },
+    problemOrders: Array.from(document.querySelectorAll('#or-problem-container .problem-order-row')).map(r => ({
+      id: r.dataset.itemId, order: q(r, '.po-order'), note: q(r, '.po-note') })),
+    majorOrders: Array.from(document.querySelectorAll('#or-major-container .major-order-row')).map(r => ({
+      id: r.dataset.itemId, order: q(r, '.mo-order'), date: q(r, '.mo-date'), qtySku: q(r, '.mo-qty'),
+      subtotal: q(r, '.mo-subtotal'), status: r.querySelector('.mo-status')?.value || '' })),
+  };
+}
+
+function recalcOrderReviewTotals() {
+  const s = computeOrderReviewSummary(syncCanonOrders(getOrderReview()));
+  const setText = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+  setText('or-lw-problem', String(s.problem));
+  setText('or-total-orders', String(s.totalOrders));
+  setText('or-lw-major-total', fmtMoney(s.majorTotal));
+  scheduleOrderTrendUpdate();
+}
+
+function renderOrderReview(data) {
+  const d = syncCanonOrders(data);
+  const setv = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  setv('or-lw-reships', d.lastWeek.reships); setv('or-lw-defects', d.lastWeek.defects);
+  setv('or-wbl-reships', d.weekBeforeLast.reships); setv('or-wbl-defects', d.weekBeforeLast.defects);
+  setv('or-wbl-problem', d.weekBeforeLast.problem); setv('or-wbl-major-total', d.weekBeforeLast.majorTotal);
+  const pc = document.getElementById('or-problem-container'), mc = document.getElementById('or-major-container');
+  if (pc) { pc.innerHTML = ''; d.problemOrders.forEach(p => addProblemOrderRow(p)); if (!d.problemOrders.length) addProblemOrderRow(); }
+  if (mc) { mc.innerHTML = ''; d.majorOrders.forEach(m => addMajorOrderRow(m)); if (!d.majorOrders.length) addMajorOrderRow(); }
+  recalcOrderReviewTotals();
+}
+
+function sortMajorOrdersBySubtotal() {
+  const c = document.getElementById('or-major-container'); if (!c) return;
+  const rows = Array.from(c.querySelectorAll('.major-order-row'));
+  rows.sort((a, b) => parseMoney(b.querySelector('.mo-subtotal')?.value) - parseMoney(a.querySelector('.mo-subtotal')?.value));
+  rows.forEach(r => c.appendChild(r));
+  scheduleDraftSync();
+  showImportToast('Sorted by subtotal.');
+}
+
+function toggleOrderReviewBlock() {
+  const body = document.getElementById('order-review-body'), ch = document.getElementById('order-review-chevron');
+  if (!body) return;
+  const hide = !body.classList.contains('hidden');
+  body.classList.toggle('hidden', hide);
+  if (ch) ch.className = hide ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-up';
+  if (!hide) { body.querySelectorAll('textarea').forEach(autoGrowTextarea); if (orderTrendChart) orderTrendChart.resize(); }
+}
+
+document.addEventListener('input', (e) => {
+  if (e.target.closest && e.target.closest('#order-review-block')) { recalcOrderReviewTotals(); scheduleDraftSync(); }
+});
+document.addEventListener('change', (e) => {
+  const t = e.target;
+  if (!(t.closest && t.closest('#order-review-block'))) return;
+  if (t.id === 'order-trend-weeks') return;   // just a chart setting, not session data
+  if ((t.classList.contains('mo-subtotal') || t.id === 'or-wbl-major-total') && /[0-9]/.test(t.value)) t.value = fmtMoney(parseMoney(t.value));
+  recalcOrderReviewTotals();
+  scheduleDraftSync();
+});
+
+
+
+/* ---------------------------------------------------------------------------
+   Weekly trend chart: Reships / Defects / Problem Orders
+   Each point is the week REPORTED at a meeting (the week before it), so a
+   session named "Week of 10/12" plots under "Week of 10/5".
+   --------------------------------------------------------------------------- */
+let orderTrendChart = null;
+let orderTrendHistory = [];
+let orderTrendTimer = null;
+
+function orderTrendMeetingDate(dateLabel, createdAt) {
+  const fallback = createdAt ? new Date(createdAt) : new Date();
+  const m = /(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/.exec(String(dateLabel || ''));
+  if (m) {
+    let y = m[3] ? parseInt(m[3], 10) : fallback.getFullYear();
+    if (y < 100) y += 2000;
+    const d = new Date(y, parseInt(m[1], 10) - 1, parseInt(m[2], 10));
+    if (!isNaN(d.getTime())) return d;
+  }
+  if (isNaN(fallback.getTime())) return null;
+  return new Date(fallback.getFullYear(), fallback.getMonth(), fallback.getDate());
+}
+
+// Monday on/before d, moved back by weeksBack weeks
+function orderTrendMonday(d, weeksBack) {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7) - 7 * weeksBack);
+  return x;
+}
+function orderTrendKey(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function orderTrendNum(v) {
+  const s = String(v === undefined || v === null ? '' : v).trim();
+  if (s === '') return null;
+  const n = parseFloat(s.replace(/[^0-9.\-]/g, ''));
+  return isNaN(n) ? null : n;
+}
+
+// rows: finalized sessions [{date_label, created_at, orderReview}]; live: the session on screen (or null)
+function buildOrderTrendSeries(rows, live, weeks) {
+  const byWeek = new Map();
+  const put = (monday, vals, prio) => {
+    if (vals.reships === null && vals.defects === null && vals.problem === null) return;
+    const k = orderTrendKey(monday), cur = byWeek.get(k);
+    if (!cur || prio >= cur.prio) byWeek.set(k, { monday, reships: vals.reships, defects: vals.defects, problem: vals.problem, prio });
+  };
+  const add = (s, lastWeekPrio) => {
+    if (!s || !s.orderReview) return;
+    const md = orderTrendMeetingDate(s.date_label, s.created_at);
+    if (!md) return;
+    const o = syncCanonOrders(s.orderReview);
+    const wb = o.weekBeforeLast, lw = o.lastWeek;
+    // the "week before last" column fills a week that may have no session of its own (lowest priority)
+    put(orderTrendMonday(md, 2), { reships: orderTrendNum(wb.reships), defects: orderTrendNum(wb.defects), problem: orderTrendNum(wb.problem) }, 0);
+    const filled = lw.reships !== '' || lw.defects !== '' || o.problemOrders.length > 0;
+    put(orderTrendMonday(md, 1), {
+      reships: orderTrendNum(lw.reships), defects: orderTrendNum(lw.defects), problem: filled ? o.problemOrders.length : null,
+    }, lastWeekPrio);
+  };
+  (rows || []).forEach(r => add(r, 1));
+  if (live) add(live, 2);
+  return Array.from(byWeek.values()).sort((a, b) => a.monday - b.monday).slice(-weeks);
+}
+
+function updateOrderTrendChart() {
+  const canvas = document.getElementById('orderTrendChart');
+  if (!canvas || typeof Chart === 'undefined') return;
+  const weeks = parseInt(document.getElementById('order-trend-weeks')?.value, 10) || 12;
+  const rows = orderTrendHistory.map(r => ({ date_label: r.date_label, created_at: r.created_at, orderReview: r.qc_data && r.qc_data.orderReview }));
+  let live = null;
+  if (currentSessionId && !recalledSessionId) {
+    live = { date_label: document.getElementById('review-date-input')?.value || '', created_at: null, orderReview: getOrderReview() };
+  }
+  const series = buildOrderTrendSeries(rows, live, weeks);
+  const labels = series.map(p => 'Week of ' + (p.monday.getMonth() + 1) + '/' + p.monday.getDate());
+  const vals = [series.map(p => p.reships), series.map(p => p.defects), series.map(p => p.problem)];
+
+  const empty = document.getElementById('order-trend-empty');
+  if (empty) empty.classList.toggle('hidden', series.length > 0);
+
+  if (orderTrendChart) {
+    orderTrendChart.data.labels = labels;
+    orderTrendChart.data.datasets.forEach((ds, i) => { ds.data = vals[i]; });
+    orderTrendChart.update();
+    return;
+  }
+  const mk = (label, color, data) => ({
+    label, data, borderColor: color, backgroundColor: color, borderWidth: 2.5, tension: 0,
+    pointRadius: 4, pointHoverRadius: 6, pointBackgroundColor: color, spanGaps: true,
+  });
+  orderTrendChart = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets: [mk('Order Reships', '#f59e0b', vals[0]), mk('Order Defects', '#f43f5e', vals[1]), mk('Problem Orders', '#38bdf8', vals[2])] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { labels: { color: '#cbd5e1', usePointStyle: true, boxWidth: 8, boxHeight: 8 } } },
+      scales: {
+        x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148,163,184,0.1)' } },
+        y: { beginAtZero: true, ticks: { color: '#94a3b8', precision: 0 }, grid: { color: 'rgba(148,163,184,0.1)' } },
+      },
+    },
+  });
+}
+
+function scheduleOrderTrendUpdate() {
+  clearTimeout(orderTrendTimer);
+  orderTrendTimer = setTimeout(updateOrderTrendChart, 200);
+}
+
+async function refreshOrderTrendHistory() {
+  try {
+    const { data, error } = await supabaseClient.from("weekly_reviews")
+      .select("id, date_label, created_at, qc_data").eq("is_draft", false)
+      .order("created_at", { ascending: false }).limit(60);
+    if (error) { console.error(error); return; }
+    orderTrendHistory = data || [];
+  } catch (e) { console.error(e); }
+  updateOrderTrendChart();
+}
+
+document.addEventListener('input', (e) => {
+  if (e.target && e.target.id === 'review-date-input') scheduleOrderTrendUpdate();
+});
+
 
 async function checkForActiveDraftOnLoad() {
   resetRecallViewState();
@@ -3774,6 +4511,7 @@ async function checkForActiveDraftOnLoad() {
   if (data && data.length > 0) {
     currentSessionId = data[0].id;
     populateFormFromSession(data[0]);
+    syncEngine.resetBase(data[0]);
     subscribeToActiveDraft(currentSessionId);
     setActiveDraftBanner(data[0].date_label);
     showImportToast("Joined an in-progress review session.");
@@ -3794,6 +4532,7 @@ async function startNewReviewSession() {lastFinalizedSessionId = null
   if (existingDrafts && existingDrafts.length > 0) {
     currentSessionId = existingDrafts[0].id;
     populateFormFromSession(existingDrafts[0]);
+    syncEngine.resetBase(existingDrafts[0]);
     subscribeToActiveDraft(currentSessionId);
     setActiveDraftBanner(existingDrafts[0].date_label);
     showImportToast("Joined the in-progress review session.");
@@ -3830,14 +4569,16 @@ async function startNewReviewSession() {lastFinalizedSessionId = null
   }
   if (carriedCount === 0) addRollingTaskCard();
   REVIEW_AGENDA_SECTIONS.forEach(containerId => { const container = document.getElementById(containerId); if (container) { container.innerHTML = ''; let sectionCarried = 0; (latestSession && latestSession.sections && latestSession.sections[containerId] || []).forEach(item => { if (item.text && item.text.trim() && item.status !== 'Complete') { addAgendaField(containerId, { text: item.text.trim(), ageWeeks: (item.ageWeeks || 1) + 1, owner: item.owner, dueDate: item.dueDate, status: item.status }); sectionCarried++; } }); if (sectionCarried === 0) addAgendaField(containerId); } });
+  renderOrderReview({ weekBeforeLast: deriveWeekBeforeLast(latestSession) });
   const initialData = buildSessionDataObject();
   initialData.date_label = dateLabel;
   initialData.is_draft = true;
 
   const { data: inserted, error: insertErr } = await supabaseClient.from("weekly_reviews").insert(initialData).select().single();
-  if (insertErr) { if (insertErr.code === '23505') { const { data: raceDrafts } = await supabaseClient.from("weekly_reviews").select("*").eq("is_draft", true).order("created_at", { ascending: false }).limit(1); if (raceDrafts && raceDrafts.length > 0) { currentSessionId = raceDrafts[0].id; populateFormFromSession(raceDrafts[0]); subscribeToActiveDraft(currentSessionId); setActiveDraftBanner(raceDrafts[0].date_label); showImportToast("Someone else just started this session \u2014 joined it."); return; } } console.error(insertErr); showImportToast("Couldn't start a shared session: " + insertErr.message); return; }
+  if (insertErr) { if (insertErr.code === '23505') { const { data: raceDrafts } = await supabaseClient.from("weekly_reviews").select("*").eq("is_draft", true).order("created_at", { ascending: false }).limit(1); if (raceDrafts && raceDrafts.length > 0) { currentSessionId = raceDrafts[0].id; populateFormFromSession(raceDrafts[0]); syncEngine.resetBase(raceDrafts[0]); subscribeToActiveDraft(currentSessionId); setActiveDraftBanner(raceDrafts[0].date_label); showImportToast("Someone else just started this session \u2014 joined it."); return; } } console.error(insertErr); showImportToast("Couldn't start a shared session: " + insertErr.message); return; }
 
   currentSessionId = inserted.id;
+  syncEngine.resetBase(inserted);
   subscribeToActiveDraft(currentSessionId);
   setActiveDraftBanner(dateLabel);
   showImportToast("Started a new shared review session!");
@@ -4077,6 +4818,7 @@ function addAgendaField(containerId, initialData = '') {
   const fieldGroup = document.createElement('div');
   fieldGroup.className = "flex items-center space-x-2 agenda-field-group p-1 bg-slate-900/80 rounded-lg border border-slate-800 hover:border-slate-700 transition";
   fieldGroup.dataset.ageWeeks = ageWeeks;
+  fieldGroup.dataset.itemId = (isObj && initialData.id) ? String(initialData.id) : genItemId('item');
 
   const badgeHtml = `<span class="badge-age-tag text-[9px] px-1.5 py-0.5 rounded font-mono font-bold border flex-shrink-0 ${ageWeeks > 1 ? 'bg-purple-500/20 text-purple-300 border-purple-500/40' : 'bg-slate-800 text-slate-400 border-slate-700'}">${ageWeeks > 1 ? `Open ${ageWeeks} Wks` : 'New'}</span>`;
   const textInputHtml = `<textarea rows="1" oninput="autoGrowTextarea(this)" placeholder="Enter details..." class="agenda-text-input w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white focus:border-teal-500 font-sans resize-y" style="min-height:36px; overflow:hidden;">${escapeHtmlContent(text)}</textarea>`;
@@ -4153,6 +4895,7 @@ document.addEventListener('click', (e) => {
   const isManualAdd = Object.keys(data).length === 0;
   const row = document.createElement('div');
   row.className = 'verification-entry-row grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs items-end mt-3 pt-3 border-t border-slate-800';
+  row.dataset.itemId = data.id ? String(data.id) : genItemId('verif');
   row.innerHTML = `
     <div class="flex items-end gap-1 sm:col-span-1" style="grid-column: 1 / -1;">
       <i class="fa-solid fa-ellipsis-vertical text-slate-500 hover:text-amber-400 drag-handle-item text-xs p-1 flex-shrink-0 cursor-grab"></i>
@@ -4195,6 +4938,7 @@ function removeVerificationEntry(btn) {
 
 function getVerificationEntries() {
   return Array.from(document.querySelectorAll('#training-verification-container .verification-entry-row')).map(row => ({
+    id: row.dataset.itemId,
     system: row.querySelector('.verification-system-select')?.value || 'QMS',
     sop: row.querySelector('.verification-sop-input')?.value.trim() || '',
     assignees: row.querySelector('.verification-assignees-input')?.value.trim() || '',
@@ -4255,11 +4999,8 @@ function resetMeetingRatings() {
     showImportToast("No active session to save — click '+ New Review' first.");
     return;
   }
-  const sessionData = buildSessionDataObject();
-  const { error } = await supabaseClient.from("weekly_reviews").update(sessionData).eq("id", currentSessionId);
-  if (error) { console.error(error); showImportToast("Save failed: " + error.message); return; }
-  markDraftSaved();
-  showImportToast("Progress saved.");
+  const ok = await syncEngine.syncNow();
+  if (ok) { markDraftSaved(); showImportToast("Progress saved."); }
 }
 
 async function finalizeReviewSession() {
@@ -4269,6 +5010,13 @@ async function finalizeReviewSession() {
   }
   if (!window.confirm("End this meeting and finalize the session? This closes it for good — no one will be able to keep editing it live after this.")) return;
 
+  if (currentSessionId) {
+    // merge everyone's latest edits first, so finalizing can never overwrite a teammate's work
+    finalizingNow = true;
+    setTimeout(() => { finalizingNow = false; }, 8000);
+    const okSync = await syncEngine.syncNow();
+    if (!okSync) { finalizingNow = false; return; }
+  }
   const sessionData = buildSessionDataObject();
   sessionData.is_draft = false;
   const targetId = currentSessionId || lastFinalizedSessionId;
@@ -4291,9 +5039,10 @@ async function finalizeReviewSession() {
   }
 
   await refreshSavedReviewSessionsDropdown();
+  refreshOrderTrendHistory();
   showConfirmationToast("Session Saved!");
 }
-        window.onload = function() {ensureSignedIn().then((session) => { if (!session) { showImportToast("Sign-in required to load your session \u2014 check your email for the link, then refresh this page."); return; } refreshSavedReviewSessionsDropdown(); subscribeToWeeklyReviews();checkForActiveDraftOnLoad(); subscribeToLayoutChanges('review-agenda-grid', 'laballey_review_card_order');initPresence();})
+        window.onload = function() {ensureSignedIn().then((session) => { if (!session) { showImportToast("Sign-in required to load your session \u2014 check your email for the link, then refresh this page."); return; } refreshSavedReviewSessionsDropdown(); refreshOrderTrendHistory(); subscribeToWeeklyReviews();checkForActiveDraftOnLoad(); subscribeToLayoutChanges('review-agenda-grid', 'laballey_review_card_order');initPresence();})
             if(typeof initCharts === 'function') initCharts();
             if(typeof updateCalculations === 'function') updateCalculations();
             if(typeof enableChartDragAndDrop === 'function') enableChartDragAndDrop();
