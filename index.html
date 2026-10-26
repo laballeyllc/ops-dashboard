@@ -185,6 +185,53 @@
     <div id="exec-summary-print-container"></div>
 
     <!-- HEADER -->
+    <!-- TEAM CHAT: small corner icon; click to open. Hidden until sign-in completes. -->
+    <div id="team-chat-root" class="hidden fixed bottom-16 right-4 flex flex-col items-end gap-2 no-print" style="z-index:45;">
+        <!-- pop-up bubble for an incoming message -->
+        <div id="team-chat-bubble" class="hidden flex-col items-end w-64 max-w-[calc(100vw-2rem)]">
+            <div onclick="openTeamChat()" class="w-full cursor-pointer rounded-xl border border-teal-500/40 bg-slate-900 shadow-2xl p-3 hover:border-teal-400/70 transition">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="chat-bubble-name text-[11px] font-bold text-teal-300"></span>
+                    <span class="text-[10px] text-slate-500"><span class="chat-bubble-meta">just now</span> &nbsp;<i class="fa-solid fa-xmark hover:text-slate-300" onclick="event.stopPropagation(); hideChatBubble();" title="Dismiss"></i></span>
+                </div>
+                <div class="chat-bubble-text text-xs text-slate-200 leading-snug break-words" style="display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-wrap;"></div>
+            </div>
+            <div class="w-3 h-3 bg-slate-900 border-r border-b border-teal-500/40 rotate-45 mr-4 -mt-1.5"></div>
+        </div>
+
+        <!-- the chat panel -->
+        <div id="team-chat-panel" class="hidden flex-col w-[320px] max-w-[calc(100vw-2rem)] h-[380px] max-h-[65vh] rounded-2xl border border-slate-600 bg-slate-900 shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-3 py-2 border-b border-slate-700 bg-slate-800/80">
+                <div>
+                    <div class="text-xs font-bold text-white">Team chat</div>
+                    <div id="team-chat-online" class="text-[10px] text-slate-400">Just you here</div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div id="team-chat-avatars" class="flex -space-x-2"></div>
+                    <button id="team-chat-mute" onclick="toggleChatMute()" class="text-slate-400 hover:text-white p-1" title="Mute pop-up bubbles" aria-label="Mute pop-up bubbles"><i class="fa-regular fa-bell text-xs"></i></button>
+                    <button onclick="closeTeamChat()" class="text-slate-400 hover:text-white p-1" title="Close" aria-label="Close chat"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+            <div id="team-chat-messages" class="flex-1 overflow-y-auto px-3 py-2 space-y-2.5 text-xs"></div>
+            <div class="p-2 border-t border-slate-700 space-y-1.5">
+                <div class="flex items-center gap-1.5 text-[10px] text-slate-400">
+                    <span>To</span>
+                    <select id="team-chat-to" class="bg-slate-950 border border-slate-700 rounded-md px-1.5 py-0.5 text-[11px] text-slate-200 focus:border-teal-500 cursor-pointer max-w-[190px]"><option value="">Everyone</option></select>
+                </div>
+                <div class="flex items-end gap-2">
+                    <textarea id="team-chat-input" rows="1" maxlength="1000" placeholder="Message the team&hellip;" onkeydown="chatKey(event)" oninput="autoGrowTextarea(this)" class="flex-1 min-w-0 resize-none max-h-24 overflow-y-auto rounded-lg bg-slate-950 border border-slate-700 px-2.5 py-1.5 text-xs text-white focus:border-teal-500" style="min-height:32px;"></textarea>
+                    <button id="team-chat-send" onclick="chatSend()" class="w-8 h-8 flex-shrink-0 rounded-lg bg-teal-600 hover:bg-teal-500 text-white flex items-center justify-center" title="Send (Enter)" aria-label="Send message"><i class="fa-solid fa-paper-plane text-xs"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- the small icon -->
+        <button id="team-chat-btn" onclick="toggleTeamChat()" class="relative w-10 h-10 rounded-full bg-slate-800/90 hover:bg-slate-700 border border-slate-600 text-slate-300 flex items-center justify-center shadow-lg transition" title="Team chat" aria-label="Open team chat">
+            <i class="fa-regular fa-comment-dots text-base"></i>
+            <span id="team-chat-badge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-teal-500 text-slate-950 text-[10px] font-bold items-center justify-center">1</span>
+        </button>
+    </div>
+
     <header class="bg-slate-900 border-b border-teal-500/30 sticky top-0 z-50 shadow-lg no-print">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
             <div class="flex flex-wrap items-center justify-between min-h-[4.25rem] gap-3">
@@ -4682,6 +4729,248 @@ function updateOrderFigures() {
 
 
 
+
+/* ---------------------------------------------------------------------------
+   Team chat: a small click-to-open messenger. Messages are saved for 7 days
+   (table team_messages), so people who weren't online still see them.
+   A message with a recipient is private: only its sender and recipient can read it
+   (enforced by the database, not just by this page).
+   --------------------------------------------------------------------------- */
+const CHAT_DAYS = 7;
+let CHAT_BUBBLE_MS = 8000;
+let chatMessages = [];
+let chatUnread = 0;
+let chatOpen = false;
+let chatMuted = false;
+let chatUnavailable = false;
+let chatChannel = null;
+let chatLastSeenAt = null;
+let chatBubbleTimer = null;
+let chatPollTimer = null;
+let chatSending = false;
+const CHAT_COLORS = ['#5eead4', '#c4b5fd', '#fcd34d', '#f9a8d4', '#7dd3fc', '#fdba74', '#86efac'];
+
+function chatName(email) { return String(email || '').split('@')[0] || 'someone'; }
+function chatColor(email) {
+  let h = 0; String(email || '').split('').forEach(c => { h = (h * 31 + c.charCodeAt(0)) >>> 0; });
+  return CHAT_COLORS[h % CHAT_COLORS.length];
+}
+function chatEsc(s) {
+  return String(s === undefined || s === null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function chatWhen(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const t = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return d.toDateString() === new Date().toDateString() ? t : d.toLocaleDateString([], { weekday: 'short', month: 'numeric', day: 'numeric' }) + ' ' + t;
+}
+function chatReadKey() { return 'laballey_chat_lastread_' + (currentUserEmail || ''); }
+function chatMarkRead() {
+  chatUnread = 0;
+  updateChatBadge();
+  try { localStorage.setItem(chatReadKey(), chatLastSeenAt || new Date().toISOString()); } catch (e) {}
+}
+function updateChatBadge() {
+  const b = document.getElementById('team-chat-badge');
+  if (!b) return;
+  b.textContent = chatUnread > 9 ? '9+' : String(chatUnread);
+  b.classList.toggle('hidden', chatUnread === 0);
+  b.classList.toggle('flex', chatUnread > 0);
+}
+
+function chatOnlineEmails() {
+  try {
+    const st = (typeof presenceChannel !== 'undefined' && presenceChannel) ? presenceChannel.presenceState() : {};
+    return Array.from(new Set(Object.values(st).flat().map(p => p && p.email).filter(Boolean)));
+  } catch (e) { return []; }
+}
+
+// who's online, plus the "To" list (people online now, and anyone you've chatted with this week)
+function updateChatPresence() {
+  const me = currentUserEmail;
+  const online = chatOnlineEmails();
+  const label = document.getElementById('team-chat-online');
+  if (label) label.textContent = online.length > 1 ? online.length + ' online now' : 'Just you here';
+  const av = document.getElementById('team-chat-avatars');
+  if (av) av.innerHTML = online.slice(0, 5).map(e => '<span class="w-6 h-6 rounded-full text-[10px] font-bold text-slate-900 flex items-center justify-center ring-2 ring-slate-900" style="background:' + chatColor(e) + '" title="' + chatEsc(e) + '">' + chatEsc(chatName(e).slice(0, 1).toUpperCase()) + '</span>').join('');
+  const sel = document.getElementById('team-chat-to');
+  if (!sel || document.activeElement === sel) return;
+  const keep = sel.value;
+  const known = new Set(online.filter(e => e !== me));
+  chatMessages.forEach(m => [m.sender_email, m.recipient_email].forEach(e => { if (e && e !== me) known.add(e); }));
+  sel.innerHTML = '<option value="">Everyone</option>' + Array.from(known).sort().map(e =>
+    '<option value="' + chatEsc(e) + '">' + chatEsc(chatName(e)) + (online.includes(e) ? '' : ' (offline)') + '</option>').join('');
+  sel.value = known.has(keep) ? keep : '';
+}
+
+function renderChatMessages(scrollToEnd) {
+  const box = document.getElementById('team-chat-messages');
+  if (!box) return;
+  const input = document.getElementById('team-chat-input'), send = document.getElementById('team-chat-send');
+  if (chatUnavailable) {
+    box.innerHTML = '<div class="text-slate-400 text-center px-4 py-8 leading-relaxed">Team chat isn\u2019t set up yet.<br><span class="text-slate-500">Ask the dashboard owner to run the chat setup SQL in Supabase, then refresh.</span></div>';
+    if (input) input.disabled = true; if (send) send.disabled = true;
+    return;
+  }
+  if (input) input.disabled = false; if (send) send.disabled = false;
+  if (!chatMessages.length) {
+    box.innerHTML = '<div class="text-slate-500 text-center px-4 py-8">No messages in the last 7 days.<br>Say hello to whoever is online.</div>';
+    return;
+  }
+  const nearEnd = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+  box.innerHTML = chatMessages.map(m => {
+    const mine = m.sender_email === currentUserEmail, priv = !!m.recipient_email;
+    const who = mine ? 'you' + (priv ? ' \u2192 ' + chatName(m.recipient_email) : '') : chatName(m.sender_email);
+    return '<div class="' + (mine ? 'text-right' : '') + '">'
+      + '<div class="text-[10px] text-slate-500 mb-0.5"><span class="font-semibold" style="color:' + (mine ? '#99f6e4' : chatColor(m.sender_email)) + '">' + chatEsc(who) + '</span> \u00b7 ' + chatEsc(chatWhen(m.created_at))
+      + (priv ? ' \u00b7 <i class="fa-solid fa-lock text-[9px]"></i> private' : '') + '</div>'
+      + '<div class="inline-block max-w-[88%] text-left whitespace-pre-wrap break-words rounded-xl px-2.5 py-1.5 ' + (mine ? 'bg-teal-600/80 text-white rounded-tr-sm' : 'bg-slate-800 text-slate-200 rounded-tl-sm') + (priv ? ' ring-1 ring-purple-400/50' : '') + '">' + chatEsc(m.body) + '</div></div>';
+  }).join('');
+  if (scrollToEnd || nearEnd) box.scrollTop = box.scrollHeight;
+}
+
+function hideChatBubble() {
+  clearTimeout(chatBubbleTimer);
+  const el = document.getElementById('team-chat-bubble');
+  if (el) { el.classList.add('hidden'); el.classList.remove('flex'); }
+}
+function showChatBubble(msg) {
+  const el = document.getElementById('team-chat-bubble');
+  if (!el || chatMuted || chatOpen) return;
+  el.querySelector('.chat-bubble-name').textContent = chatName(msg.sender_email) + (msg.recipient_email ? ' (private)' : '');
+  el.querySelector('.chat-bubble-meta').textContent = chatUnread > 1 ? chatUnread + ' new' : 'just now';
+  el.querySelector('.chat-bubble-text').textContent = msg.body;      // textContent: message text can never inject markup
+  el.classList.remove('hidden'); el.classList.add('flex');
+  clearTimeout(chatBubbleTimer);
+  chatBubbleTimer = setTimeout(hideChatBubble, CHAT_BUBBLE_MS);
+}
+
+// add messages we haven't seen; notify for new ones from other people
+function chatIngest(rows, notify) {
+  const fresh = [];
+  (rows || []).forEach(r => { if (r && !chatMessages.some(m => m.id === r.id)) { chatMessages.push(r); fresh.push(r); } });
+  if (!fresh.length) return;
+  chatMessages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  chatLastSeenAt = chatMessages[chatMessages.length - 1].created_at;
+  const incoming = fresh.filter(m => m.sender_email !== currentUserEmail);
+  if (notify && incoming.length) {
+    if (chatOpen) { chatMarkRead(); }
+    else { chatUnread += incoming.length; updateChatBadge(); showChatBubble(incoming[incoming.length - 1]); }
+  }
+  updateChatPresence();
+  if (chatOpen) renderChatMessages();
+}
+
+async function chatLoadInitial() {
+  const since = new Date(Date.now() - CHAT_DAYS * 86400000).toISOString();
+  const { data, error } = await supabaseClient.from('team_messages').select('*')
+    .gte('created_at', since).order('created_at', { ascending: true }).limit(500);
+  if (error) { chatUnavailable = true; console.warn('Team chat unavailable:', error.message); return; }
+  chatMessages = data || [];
+  chatLastSeenAt = chatMessages.length ? chatMessages[chatMessages.length - 1].created_at : null;
+  let lastRead = null;
+  try { lastRead = localStorage.getItem(chatReadKey()); } catch (e) {}
+  if (!lastRead) { chatMarkRead(); return; }      // first time on this computer: don't flood with old messages
+  const incoming = chatMessages.filter(m => m.sender_email !== currentUserEmail && new Date(m.created_at) > new Date(lastRead));
+  chatUnread = incoming.length;
+  updateChatBadge();
+  if (incoming.length) showChatBubble(incoming[incoming.length - 1]);     // "you have a message" while you were away
+}
+
+// safety net: catches anything the live connection missed
+async function chatPoll() {
+  if (chatUnavailable || !currentUserEmail) return;
+  try {
+    let q = supabaseClient.from('team_messages').select('*').order('created_at', { ascending: true }).limit(200);
+    q = chatLastSeenAt ? q.gt('created_at', chatLastSeenAt) : q.gte('created_at', new Date(Date.now() - CHAT_DAYS * 86400000).toISOString());
+    const { data, error } = await q;
+    if (!error && data && data.length) chatIngest(data, true);
+  } catch (e) { console.error(e); }
+}
+
+function chatSubscribe() {
+  if (chatUnavailable) return;
+  if (chatChannel) supabaseClient.removeChannel(chatChannel);
+  chatChannel = supabaseClient.channel('team-chat-messages')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'team_messages' }, payload => chatIngest([payload.new], true))
+    .subscribe(status => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setTimeout(chatSubscribe, 3000);
+      else if (status === 'SUBSCRIBED') chatPoll();
+    });
+}
+
+async function initTeamChat() {
+  const root = document.getElementById('team-chat-root');
+  if (!root || !currentUserEmail) return;
+  try { chatMuted = localStorage.getItem('laballey_chat_muted') === '1'; } catch (e) {}
+  updateChatMuteIcon();
+  root.classList.remove('hidden');
+  await chatLoadInitial();
+  renderChatMessages();
+  updateChatPresence();
+  if (!chatUnavailable) {
+    chatSubscribe();
+    clearInterval(chatPollTimer);
+    chatPollTimer = setInterval(chatPoll, 20000);
+  }
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && chatOpen) closeTeamChat(); });
+}
+
+function openTeamChat() {
+  chatOpen = true;
+  hideChatBubble();
+  const p = document.getElementById('team-chat-panel');
+  if (p) { p.classList.remove('hidden'); p.classList.add('flex'); }
+  chatMarkRead();
+  updateChatPresence();
+  renderChatMessages(true);
+  const input = document.getElementById('team-chat-input');
+  if (input && !input.disabled) input.focus();
+}
+function closeTeamChat() {
+  chatOpen = false;
+  const p = document.getElementById('team-chat-panel');
+  if (p) { p.classList.add('hidden'); p.classList.remove('flex'); }
+}
+function toggleTeamChat() { if (chatOpen) closeTeamChat(); else openTeamChat(); }
+
+function updateChatMuteIcon() {
+  const b = document.getElementById('team-chat-mute');
+  if (!b) return;
+  b.innerHTML = '<i class="fa-regular ' + (chatMuted ? 'fa-bell-slash text-amber-400' : 'fa-bell') + ' text-xs"></i>';
+  b.title = chatMuted ? 'Pop-up bubbles are muted (click to turn on)' : 'Mute pop-up bubbles';
+}
+function toggleChatMute() {
+  chatMuted = !chatMuted;
+  try { localStorage.setItem('laballey_chat_muted', chatMuted ? '1' : '0'); } catch (e) {}
+  if (chatMuted) hideChatBubble();
+  updateChatMuteIcon();
+}
+
+function chatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); chatSend(); }
+}
+
+async function chatSend() {
+  if (chatSending || chatUnavailable || !currentUserEmail) return;
+  const ta = document.getElementById('team-chat-input');
+  const body = (ta.value || '').trim();
+  if (!body) return;
+  if (body.length > 1000) { showImportToast('That message is too long (1,000 characters max).'); return; }
+  const to = document.getElementById('team-chat-to').value || null;
+  chatSending = true;
+  const { data, error } = await supabaseClient.from('team_messages')
+    .insert({ sender_email: currentUserEmail, recipient_email: to, body }).select().single();
+  chatSending = false;
+  if (error || !data) { showImportToast('Message not sent: ' + ((error && error.message) || 'unknown error')); return; }   // text stays in the box
+  ta.value = ''; autoGrowTextarea(ta);
+  chatIngest([data], false);
+  chatMarkRead();
+  renderChatMessages(true);
+  ta.focus();
+}
+
+
 async function checkForActiveDraftOnLoad() {
   resetRecallViewState();
   const { data, error } = await supabaseClient
@@ -4892,6 +5181,7 @@ function renderPresenceAvatars(state) {
     const initials = (email || '??').split('@')[0].slice(0, 2).toUpperCase();
     return `<div class="w-7 h-7 rounded-full bg-teal-600 text-white text-[10px] flex items-center justify-center font-bold border-2 border-slate-900" title="${email}">${initials}</div>`;
   }).join('');
+  if (typeof updateChatPresence === 'function') updateChatPresence();   // keep the chat's "online" list in step
 }
 
 /* ---- My Open Tasks ---- */
@@ -5227,7 +5517,7 @@ async function finalizeReviewSession() {
   refreshOrderTrendHistory();
   showConfirmationToast("Session Saved!");
 }
-        window.onload = function() {ensureSignedIn().then((session) => { if (!session) { showImportToast("Sign-in required to load your session \u2014 check your email for the link, then refresh this page."); return; } refreshSavedReviewSessionsDropdown(); refreshOrderTrendHistory(); subscribeToWeeklyReviews();checkForActiveDraftOnLoad(); subscribeToLayoutChanges('review-agenda-grid', 'laballey_review_card_order');initPresence();})
+        window.onload = function() {ensureSignedIn().then((session) => { if (!session) { showImportToast("Sign-in required to load your session \u2014 check your email for the link, then refresh this page."); return; } refreshSavedReviewSessionsDropdown(); refreshOrderTrendHistory(); subscribeToWeeklyReviews();checkForActiveDraftOnLoad(); subscribeToLayoutChanges('review-agenda-grid', 'laballey_review_card_order');initPresence(); initTeamChat();})
             if(typeof initCharts === 'function') initCharts();
             if(typeof updateCalculations === 'function') updateCalculations();
             if(typeof enableChartDragAndDrop === 'function') enableChartDragAndDrop();
