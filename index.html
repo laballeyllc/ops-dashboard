@@ -382,7 +382,7 @@
                     <div id="good-news-container" class="space-y-2 min-h-[48px] p-1 rounded-xl transition-all"></div>
                                     </div>
                 
-                <!-- Dedicated Smooth Line Chart: Inventory Rotation Trend (% of SKUs in each rotation category) -->
+                <!-- Dedicated Smooth Line Chart: Inventory Rotation Trend (% of stock in each rotation category) -->
                 <div class="glass-panel p-5 rounded-2xl chart-card relative lg:col-span-2 border border-teal-500/40 glow-effect" data-card-id="chart-abc-rotations-overlay">
                     <div class="flex items-center gap-2 mb-4">
                         <i class="fa-solid fa-grip-vertical text-slate-500 hover:text-teal-400 drag-handle text-sm p-1" title="Drag to reorder chart card"></i>
@@ -392,9 +392,9 @@
                         <div>
                             <h3 class="text-base font-bold text-white flex items-center gap-2">
                                 <i class="fa-solid fa-chart-line text-amber-400"></i>
-                                Inventory Rotation Trend (% of SKUs)
+                                Inventory Rotation Trend (% of Stock)
                             </h3>
-                            <p class="text-xs text-slate-400">Percent of SKUs in each rotation category, by week, based on sales.</p>
+                            <p class="text-xs text-slate-400">Percent of stock in each rotation category, by week.</p>
                         </div>
                     </div>
                     <div class="rotation-layout flex flex-col lg:flex-row gap-4">
@@ -420,8 +420,11 @@
                             </ul>
                             <div class="mt-auto pt-4"><div class="pt-3 border-t border-slate-700/70 text-[11px] text-slate-400 leading-snug">Periods: T-1, T-2, T-3, T-6, &amp; T-12</div></div>
                         </div>
-                        <div class="flex-1 min-w-0 h-72 relative">
-                            <canvas id="abcRotationOverlayChart"></canvas>
+                        <div class="flex-1 min-w-0">
+                            <div id="fig-rotation" class="mb-3"></div>
+                            <div class="h-64 relative">
+                                <canvas id="abcRotationOverlayChart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -443,6 +446,7 @@
                             </div>
                         </div>
                     </div>
+                    <div id="fig-shipped" class="mb-3"></div>
                     <div class="h-64 relative">
                         <canvas id="shippedSlaChart"></canvas>
                     </div>
@@ -471,6 +475,7 @@
                             </span>
                         </div>
                     </div>
+                    <div id="fig-backlog" class="mb-3"></div>
                     <div class="h-64 relative">
                         <canvas id="backlogChart"></canvas>
                     </div>
@@ -493,6 +498,7 @@
                             </div>
                         </div>
                     </div>
+                    <div id="fig-openpo" class="mb-3"></div>
                     <div class="h-60 relative">
                         <canvas id="openPoChart"></canvas>
                     </div>
@@ -515,6 +521,7 @@
                             </div>
                         </div>
                     </div>
+                    <div id="fig-builds" class="mb-3"></div>
                     <div class="h-60 relative">
                         <canvas id="buildsChart"></canvas>
                     </div>
@@ -537,6 +544,7 @@
                             </div>
                         </div>
                     </div>
+                    <div id="fig-inventory" class="mb-3"></div>
                     <div class="h-64 relative">
                         <canvas id="inventoryChart"></canvas>
                     </div>
@@ -571,6 +579,7 @@
                         </div>
                     </div>
                     <div id="orders-in-out-status" class="text-xs text-slate-500 mb-2">Pick a view, then click "Load Data" to pull the last 8 weeks from ShipStation. This calls a live API, so it's manual rather than automatic on every page load.</div>
+                    <div id="fig-ordersio" class="mb-3"></div>
                     <div class="h-64 relative">
                         <canvas id="ordersInOutChart"></canvas>
                     </div>
@@ -845,15 +854,20 @@
                                 <thead>
                                     <tr class="text-slate-400 text-[11px]">
                                         <th class="text-left font-semibold py-1.5 pr-2">End of week</th>
-                                        <th class="font-semibold px-2 w-28 text-center">Last week</th>
-                                        <th class="font-semibold px-2 w-28 text-center">Week before last</th>
+                                        <th class="font-semibold px-2 w-40 text-center">Last week</th>
+                                        <th class="font-semibold px-2 w-40 text-center">Week before last</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-800">
                                     <tr>
-                                        <td class="py-1.5 pr-2 text-slate-200">Order Reships</td>
-                                        <td class="px-2 py-1"><input type="number" min="0" step="1" id="or-lw-reships" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-center text-xs text-white font-mono font-bold focus:border-sky-400"></td>
+                                        <td class="py-1.5 pr-2 text-slate-200">Order Reships <span class="text-[10px] text-slate-500">(adds up the reasons)</span></td>
+                                        <td class="px-2 py-1 text-center"><span id="or-lw-reships" data-legacy="" class="font-mono font-bold text-white text-sm">&ndash;</span></td>
                                         <td class="px-2 py-1"><input type="number" min="0" step="1" id="or-wbl-reships" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-center text-xs text-slate-300 font-mono focus:border-sky-400"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-1.5 pl-4 pr-2 text-[11px] text-slate-400">&#8627; Reship reasons</td>
+                                        <td class="px-2 py-1"><div class="grid grid-cols-3 gap-2"><label class="flex flex-col items-center gap-0.5 text-[10px] text-slate-500 font-semibold">Lost<input type="number" min="0" step="1" id="or-lw-lost" class="w-full bg-slate-950 border border-slate-800 rounded-md py-1 text-center text-xs text-white font-mono font-bold focus:border-amber-400"></label><label class="flex flex-col items-center gap-0.5 text-[10px] text-slate-500 font-semibold">Damaged<input type="number" min="0" step="1" id="or-lw-damaged" class="w-full bg-slate-950 border border-slate-800 rounded-md py-1 text-center text-xs text-white font-mono font-bold focus:border-amber-400"></label><label class="flex flex-col items-center gap-0.5 text-[10px] text-slate-500 font-semibold">Quality<input type="number" min="0" step="1" id="or-lw-quality" class="w-full bg-slate-950 border border-slate-800 rounded-md py-1 text-center text-xs text-white font-mono font-bold focus:border-amber-400"></label></div></td>
+                                        <td class="px-2 py-1"><div class="grid grid-cols-3 gap-2"><div class="flex flex-col items-center gap-0.5 text-[10px] text-slate-500 font-semibold">Lost<span id="or-wbl-lost" data-value="" class="w-full bg-slate-900 border border-slate-800 rounded-md py-1 text-center text-xs text-slate-300 font-mono">&ndash;</span></div><div class="flex flex-col items-center gap-0.5 text-[10px] text-slate-500 font-semibold">Damaged<span id="or-wbl-damaged" data-value="" class="w-full bg-slate-900 border border-slate-800 rounded-md py-1 text-center text-xs text-slate-300 font-mono">&ndash;</span></div><div class="flex flex-col items-center gap-0.5 text-[10px] text-slate-500 font-semibold">Quality<span id="or-wbl-quality" data-value="" class="w-full bg-slate-900 border border-slate-800 rounded-md py-1 text-center text-xs text-slate-300 font-mono">&ndash;</span></div></div></td>
                                     </tr>
                                     <tr>
                                         <td class="py-1.5 pr-2 text-slate-200">Order Defects</td>
@@ -873,12 +887,12 @@
                         <div>
                             <div class="flex items-center justify-between mb-2">
                                 <h4 class="text-xs font-bold text-slate-300">Problem Orders</h4>
-                                <button onclick="addProblemOrderRow()" class="px-2 py-0.5 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 rounded text-[10px] font-semibold transition flex items-center space-x-1">
-                                    <i class="fa-solid fa-plus text-[9px]"></i>
-                                    <span>Add Order</span>
-                                </button>
                             </div>
                             <div id="or-problem-container" class="space-y-1.5"></div>
+                            <button onclick="addProblemOrderRow()" class="mt-2 px-3 py-1.5 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 rounded-lg text-xs font-semibold transition flex items-center space-x-1.5">
+                                <i class="fa-solid fa-plus text-[10px]"></i>
+                                <span>Add Order</span>
+                            </button>
                         </div>
                     </div>
 
@@ -894,9 +908,20 @@
                                 <option value="26">Last 26 weeks</option>
                             </select>
                         </div>
+                        <div id="fig-order-trend" class="mb-2"></div>
                         <div class="relative h-56 rounded-xl border border-slate-800 bg-slate-950/60 p-2">
                             <canvas id="orderTrendChart"></canvas>
                             <div id="order-trend-empty" class="absolute inset-0 flex items-center justify-center text-center px-8 text-xs text-slate-500 pointer-events-none">The trend fills in as weekly sessions are finalized.</div>
+                        </div>
+                        <div class="mt-4">
+                            <h4 class="text-xs font-bold text-slate-300 mb-2">Reships by Reason
+                                <span class="ml-1 text-[10px] font-normal text-slate-500">Lost, Damaged and Quality, each week</span>
+                            </h4>
+                            <div id="fig-order-reasons" class="mb-2"></div>
+                            <div class="relative h-44 rounded-xl border border-slate-800 bg-slate-950/60 p-2">
+                                <canvas id="orderReasonsChart"></canvas>
+                                <div id="order-reasons-empty" class="absolute inset-0 flex items-center justify-center text-center px-8 text-xs text-slate-500 pointer-events-none">Reship reasons appear here once they are entered.</div>
+                            </div>
                         </div>
                     </div>
 
@@ -913,13 +938,10 @@
                                 <span class="px-2 py-0.5 rounded text-[10px] font-semibold border bg-yellow-400/80 border-yellow-200/70 text-slate-900">In Progress</span>
                                 <span class="px-2 py-0.5 rounded text-[10px] font-semibold border bg-orange-500/80 border-orange-300/70 text-white">Production Delay</span>
                                 <span class="px-2 py-0.5 rounded text-[10px] font-semibold border bg-red-600/80 border-red-300/70 text-white">Supply Delay</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold border bg-purple-500/70 border-purple-300/60 text-white">Customer Delay</span>
                                 <button onclick="sortMajorOrdersBySubtotal()" class="ml-2 px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded text-[10px] font-semibold transition flex items-center space-x-1">
                                     <i class="fa-solid fa-arrow-down-wide-short text-[9px]"></i>
                                     <span>Sort by subtotal</span>
-                                </button>
-                                <button onclick="addMajorOrderRow()" class="px-2 py-0.5 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 rounded text-[10px] font-semibold transition flex items-center space-x-1">
-                                    <i class="fa-solid fa-plus text-[9px]"></i>
-                                    <span>Add Order</span>
                                 </button>
                             </div>
                         </div>
@@ -933,6 +955,10 @@
                             <span class="w-8 flex-shrink-0"></span>
                         </div>
                         <div id="or-major-container" class="space-y-1.5"></div>
+                        <button onclick="addMajorOrderRow()" class="mt-2 px-3 py-1.5 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 rounded-lg text-xs font-semibold transition flex items-center space-x-1.5">
+                                <i class="fa-solid fa-plus text-[10px]"></i>
+                                <span>Add Order</span>
+                            </button>
                         <div class="mt-3 pt-2 border-t border-slate-800 flex flex-wrap justify-end gap-6 text-xs">
                             <div class="text-right">
                                 <span class="block text-[10px] text-slate-500">Last week total (this list)</span>
@@ -2120,6 +2146,7 @@
 
                 const failedResults = results.filter(r => r.error);
                 const failedCount = failedResults.length;
+                updateOrdersInOutFigures(results);
 
                 if (ordersInOutChart) { ordersInOutChart.destroy(); ordersInOutChart = null; }
                 const canvas = document.getElementById('ordersInOutChart');
@@ -2691,7 +2718,7 @@
         function openQuarterModal() { document.getElementById('quarter-date-modal').classList.remove('hidden'); }
         function closeQuarterModal() { document.getElementById('quarter-date-modal').classList.add('hidden'); if (!quarterStartDate) { document.getElementById('date-range-select').value = 'all'; selectedDateRange = 'all'; } }
         function applyQuarterRange(e) { e.preventDefault(); const year = parseInt(document.getElementById('quarter-year-select').value) || 2026; const q = document.getElementById('quarter-q-select').value; let sm = 0, em = 2, ld = 31; if (q==='Q2') { sm=3; em=5; ld=30; } else if (q==='Q3') { sm=6; em=8; ld=30; } else if (q==='Q4') { sm=9; em=11; ld=31; } quarterStartDate = new Date(year, sm, 1); quarterEndDate = new Date(year, em, ld, 23, 59, 59); selectedDateRange = 'quarter'; closeQuarterModal(); updateCalculations(); }
-        function switchTab(tabId) { ['dashboard', 'data', 'review', 'outlook'].forEach(id => { const c = document.getElementById('content-' + id); const b = document.getElementById('tab-' + id); if (id === tabId) { c?.classList.remove('hidden'); if(b) b.className = "tab-btn active px-3.5 py-2 rounded-lg text-xs font-semibold transition-all duration-150 flex items-center space-x-1.5 bg-teal-600 text-white shadow-md"; } else { c?.classList.add('hidden'); if(b) b.className = "tab-btn px-3.5 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all duration-150 flex items-center space-x-1.5 hover:bg-slate-800"; } }); if (tabId === 'review') setTimeout(() => { regrowReviewTextareas(); if (orderTrendChart) orderTrendChart.resize(); }, 0); }
+        function switchTab(tabId) { ['dashboard', 'data', 'review', 'outlook'].forEach(id => { const c = document.getElementById('content-' + id); const b = document.getElementById('tab-' + id); if (id === tabId) { c?.classList.remove('hidden'); if(b) b.className = "tab-btn active px-3.5 py-2 rounded-lg text-xs font-semibold transition-all duration-150 flex items-center space-x-1.5 bg-teal-600 text-white shadow-md"; } else { c?.classList.add('hidden'); if(b) b.className = "tab-btn px-3.5 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all duration-150 flex items-center space-x-1.5 hover:bg-slate-800"; } }); if (tabId === 'review') setTimeout(() => { regrowReviewTextareas(); if (orderTrendChart) orderTrendChart.resize(); if (orderReasonsChart) orderReasonsChart.resize(); }, 0); }
         function updateSourceDiagnosticBar() { const t = document.getElementById('active-source-title'); const d = document.getElementById('active-source-details'); if (t && d) { t.innerText = `Active Tab: "${activeSheetName}"`; d.innerText = `Displaying ${operationsData.length} weekly entries across ${customMetricDefinitions.length} metric paths.`; } }
         function updateWorksheetTabDropdown(list) { const s = document.getElementById('worksheet-tab-select'); if (s) s.innerHTML = list.map(n => `<option value="${n}" ${n === activeSheetName ? 'selected' : ''}>${n}</option>`).join(''); }
         function switchWorksheetTab(name) { if (loadedWorkbookSheets[name]) { activeSheetName = name; operationsData = loadedWorkbookSheets[name]; updateCalculations(); } }
@@ -2709,6 +2736,7 @@
 
         function initCharts() {
             const dataToUse = getFilteredData(); const weeks = dataToUse.map(d => d.week);
+            updateChartFigures(dataToUse);
             const slaGoal = parseFloat(document.getElementById('sla-target-input')?.value) || 90; const fridayCap = parseFloat(document.getElementById('friday-cap-input')?.value) || 80;
             if (shippedSlaChart) { shippedSlaChart.destroy(); shippedSlaChart = null; }
             if (backlogChart) { backlogChart.destroy(); backlogChart = null; }
@@ -2919,7 +2947,7 @@
             const dynamicMetrics = customMetricDefinitions.filter(m => !coreKeys.includes(m.key) || m.key.startsWith('custom_'));
             Object.keys(dynamicCharts).forEach(key => { if (dynamicCharts[key]) dynamicCharts[key].destroy(); }); dynamicCharts = {}; if (dynamicMetrics.length === 0) { container.innerHTML = ''; return; }
 
-            const invAccMetrics = dynamicMetrics.filter(m => isLocationCountMetric(m)); const otherMetrics = dynamicMetrics.filter(m => !isLocationCountMetric(m) && !coreKeys.includes(m.key)); let gridHtml = '';
+            const invAccMetrics = dynamicMetrics.filter(m => isLocationCountMetric(m)); const otherMetrics = dynamicMetrics.filter(m => !isLocationCountMetric(m) && !coreKeys.includes(m.key)); const latestRow = (dataToUse && dataToUse.length) ? dataToUse[dataToUse.length - 1] : null; let gridHtml = '';
             if (invAccMetrics.length > 0) gridHtml += renderHybridIntermittentCadence(dataToUse, invAccMetrics);
 
             gridHtml += otherMetrics.map(m => `
@@ -2932,7 +2960,7 @@
                         </div>
                         <span class="text-[10px] bg-teal-500/20 text-teal-300 px-2 py-0.5 rounded border border-teal-500/30 font-mono font-semibold">${m.type.toUpperCase()}</span>
                     </div>
-                    <div class="h-60 relative"><canvas id="dynamic_chart_${m.key}"></canvas></div>
+                    ${dynamicFigureHtml(m, latestRow)}<div class="h-60 relative"><canvas id="dynamic_chart_${m.key}"></canvas></div>
                 </div>`).join('');
             container.innerHTML = gridHtml;
 
@@ -3067,7 +3095,7 @@
             if (buildsChart) { buildsChart.data.labels = weeks; buildsChart.data.datasets[0].data = dataToUse.map(d => d.buildsCompleted || 0); buildsChart.data.datasets[1].data = dataToUse.map(d => d.unitsBuilt || 0); buildsChart.update(); }
             if (inventoryChart) { inventoryChart.data.labels = weeks; inventoryChart.data.datasets[0].data = dataToUse.map(d => d.invValuation || 0); inventoryChart.data.datasets[1].data = dataToUse.map(d => d.stockUnits || 0); inventoryChart.data.datasets[2].data = dataToUse.map(d => d.reservationsUnits || 0); inventoryChart.data.datasets[3].data = dataToUse.map(d => d.unitsOnPo || 0); inventoryChart.update(); }
 if (abcRotationOverlayChart) { abcRotationOverlayChart.data.labels = weeks; ['custom_rot_a', 'custom_rot_b', 'custom_rot_c', 'custom_rot_0'].forEach((k, i) => { const ds = abcRotationOverlayChart.data.datasets[i]; if (ds) ds.data = dataToUse.map(d => d[k] !== undefined && d[k] !== 'N/C' ? d[k] : null); }); abcRotationOverlayChart.update(); }
-            updateDynamicCharts(); if (!opts.skipTableRebuild) renderDataTable(); enableChartDragAndDrop(); enableReviewCardDragAndDrop(); enableItemDragAndDrop(); updateSourceDiagnosticBar(); runOperationalAnomalyScanner(dataToUse, slaGoal, fridayCap);
+            updateDynamicCharts(); updateChartFigures(dataToUse); if (!opts.skipTableRebuild) renderDataTable(); enableChartDragAndDrop(); enableReviewCardDragAndDrop(); enableItemDragAndDrop(); updateSourceDiagnosticBar(); runOperationalAnomalyScanner(dataToUse, slaGoal, fridayCap);
         }
 
         function getQCData() {
@@ -3783,10 +3811,16 @@ function syncCanonVerif(v) {
 function syncCanonOrders(o) {
   o = o || {};
   const lw = o.lastWeek || {}, wb = o.weekBeforeLast || {};
+  // Reships total = Lost + Damaged + Quality whenever any reason is filled in (a legacy typed total is kept only if there are no reasons).
+  const reasons = [syncStr(lw.reshipLost).trim(), syncStr(lw.reshipDamaged).trim(), syncStr(lw.reshipQuality).trim()];
+  const anyReason = reasons.some(r => r !== '');
+  const reshipTotal = anyReason ? String(reasons.reduce((a, r) => a + (parseInt(r, 10) || 0), 0)) : syncStr(lw.reships);
   return {
-    lastWeek: { reships: syncStr(lw.reships), defects: syncStr(lw.defects) },
+    lastWeek: { reships: reshipTotal, defects: syncStr(lw.defects),
+                reshipLost: reasons[0], reshipDamaged: reasons[1], reshipQuality: reasons[2] },
     weekBeforeLast: { reships: syncStr(wb.reships), defects: syncStr(wb.defects),
-                      problem: syncStr(wb.problem), majorTotal: syncStr(wb.majorTotal) },
+                      problem: syncStr(wb.problem), majorTotal: syncStr(wb.majorTotal),
+                      reshipLost: syncStr(wb.reshipLost), reshipDamaged: syncStr(wb.reshipDamaged), reshipQuality: syncStr(wb.reshipQuality) },
     problemOrders: syncEnsureIds(o.problemOrders, 'po')
       .map(p => ({ id: String(p.id), order: syncStr(p.order), note: syncStr(p.note) }))
       .filter(p => (p.order + p.note).trim() !== ''),
@@ -3902,6 +3936,7 @@ function syncMergeUnits(base, local, server) {
   const out = {};
   const keys = new Set([...Object.keys(local), ...Object.keys(server)]);
   keys.forEach(k => { out[k] = syncMergeValue(base ? base[k] : undefined, local[k], server[k]); });
+  if (out.orders) out.orders = syncCanonOrders(out.orders);   // keeps the reship total equal to the sum of its reasons
   return out;
 }
 
@@ -4000,7 +4035,8 @@ function createSyncEngine(io) {
       let needSave = false;
       Object.keys(serverUnits).forEach(u => {
         if (syncEqual(serverUnits[u], base[u])) return;           // nothing new from others in this unit
-        const mergedU = syncMergeValue(base[u], local[u], serverUnits[u]);
+        let mergedU = syncMergeValue(base[u], local[u], serverUnits[u]);
+        if (u === 'orders') mergedU = syncCanonOrders(mergedU);
         if (io.unitHasFocus(u)) { deferred = true; return; }      // never rebuild what's being typed in
         if (!syncEqual(mergedU, local[u])) io.renderUnit(u, syncClone(mergedU));
         base[u] = syncClone(serverUnits[u]);
@@ -4198,7 +4234,7 @@ function unsubscribeFromActiveDraft() {
 /* ---------------------------------------------------------------------------
    End of Week Order Review block
    --------------------------------------------------------------------------- */
-const ORDER_STATUS_OPTIONS = ['', 'Shipped', 'Shipping Monday', 'In Progress', 'Production Delay', 'Supply Delay'];
+const ORDER_STATUS_OPTIONS = ['', 'Shipped', 'Shipping Monday', 'In Progress', 'Production Delay', 'Supply Delay', 'Customer Delay'];
 const ORDER_STATUS_STYLES = {
   '': 'bg-slate-950 border-slate-800 text-white',
   'Shipped': 'bg-emerald-200/25 border-emerald-300/40 text-emerald-100',
@@ -4206,6 +4242,7 @@ const ORDER_STATUS_STYLES = {
   'In Progress': 'bg-yellow-400/80 border-yellow-200/70 text-slate-900',
   'Production Delay': 'bg-orange-500/80 border-orange-300/70 text-white',
   'Supply Delay': 'bg-red-600/80 border-red-300/70 text-white',
+  'Customer Delay': 'bg-purple-500/70 border-purple-300/60 text-white',
 };
 const ORDER_MO_BASE = 'mo-order w-24 flex-shrink-0 border rounded-lg p-2 text-xs font-mono font-bold focus:border-sky-400 ';
 
@@ -4229,9 +4266,10 @@ function computeOrderReviewSummary(o) {
 // "Week before last" auto-fills from the most recent finalized session's "Last week" figures.
 function deriveWeekBeforeLast(session) {
   const raw = session && session.qc_data && session.qc_data.orderReview;
-  if (!raw) return { reships: '', defects: '', problem: '', majorTotal: '' };
+  if (!raw) return { reships: '', defects: '', problem: '', majorTotal: '', reshipLost: '', reshipDamaged: '', reshipQuality: '' };
   const o = syncCanonOrders(raw), s = computeOrderReviewSummary(o);
-  return { reships: o.lastWeek.reships, defects: o.lastWeek.defects, problem: String(s.problem), majorTotal: fmtMoney(s.majorTotal) };
+  return { reships: o.lastWeek.reships, defects: o.lastWeek.defects, problem: String(s.problem), majorTotal: fmtMoney(s.majorTotal),
+           reshipLost: o.lastWeek.reshipLost, reshipDamaged: o.lastWeek.reshipDamaged, reshipQuality: o.lastWeek.reshipQuality };
 }
 
 function addProblemOrderRow(data) {
@@ -4293,9 +4331,15 @@ function removeOrderRow(btn) {
 function getOrderReview() {
   const val = id => (document.getElementById(id)?.value || '').trim();
   const q = (row, sel) => (row.querySelector(sel)?.value || '').trim();
+  const dv = id => (document.getElementById(id)?.dataset.value || '').trim();   // read-only figures keep their value in data-value
+  const lost = val('or-lw-lost'), dmg = val('or-lw-damaged'), qual = val('or-lw-quality');
+  const anyReason = [lost, dmg, qual].some(x => x !== '');
+  const totalEl = document.getElementById('or-lw-reships');
+  const reships = anyReason ? String((parseInt(lost, 10) || 0) + (parseInt(dmg, 10) || 0) + (parseInt(qual, 10) || 0)) : ((totalEl && totalEl.dataset.legacy) || '');
   return {
-    lastWeek: { reships: val('or-lw-reships'), defects: val('or-lw-defects') },
-    weekBeforeLast: { reships: val('or-wbl-reships'), defects: val('or-wbl-defects'), problem: val('or-wbl-problem'), majorTotal: val('or-wbl-major-total') },
+    lastWeek: { reships: reships, defects: val('or-lw-defects'), reshipLost: lost, reshipDamaged: dmg, reshipQuality: qual },
+    weekBeforeLast: { reships: val('or-wbl-reships'), defects: val('or-wbl-defects'), problem: val('or-wbl-problem'), majorTotal: val('or-wbl-major-total'),
+                      reshipLost: dv('or-wbl-lost'), reshipDamaged: dv('or-wbl-damaged'), reshipQuality: dv('or-wbl-quality') },
     problemOrders: Array.from(document.querySelectorAll('#or-problem-container .problem-order-row')).map(r => ({
       id: r.dataset.itemId, order: q(r, '.po-order'), note: q(r, '.po-note') })),
     majorOrders: Array.from(document.querySelectorAll('#or-major-container .major-order-row')).map(r => ({
@@ -4305,18 +4349,26 @@ function getOrderReview() {
 }
 
 function recalcOrderReviewTotals() {
-  const s = computeOrderReviewSummary(syncCanonOrders(getOrderReview()));
+  const o = syncCanonOrders(getOrderReview());
+  const s = computeOrderReviewSummary(o);
   const setText = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+  setText('or-lw-reships', o.lastWeek.reships === '' ? '\u2013' : o.lastWeek.reships);   // the total adds up from the reasons
   setText('or-lw-problem', String(s.problem));
   setText('or-total-orders', String(s.totalOrders));
   setText('or-lw-major-total', fmtMoney(s.majorTotal));
+  updateOrderFigures();
   scheduleOrderTrendUpdate();
 }
 
 function renderOrderReview(data) {
   const d = syncCanonOrders(data);
   const setv = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-  setv('or-lw-reships', d.lastWeek.reships); setv('or-lw-defects', d.lastWeek.defects);
+  setv('or-lw-lost', d.lastWeek.reshipLost); setv('or-lw-damaged', d.lastWeek.reshipDamaged); setv('or-lw-quality', d.lastWeek.reshipQuality);
+  setv('or-lw-defects', d.lastWeek.defects);
+  const totalEl = document.getElementById('or-lw-reships');
+  if (totalEl) totalEl.dataset.legacy = [d.lastWeek.reshipLost, d.lastWeek.reshipDamaged, d.lastWeek.reshipQuality].some(x => x !== '') ? '' : d.lastWeek.reships;
+  const setd = (id, v) => { const el = document.getElementById(id); if (el) { el.dataset.value = v; el.textContent = v === '' ? '\u2013' : v; } };
+  setd('or-wbl-lost', d.weekBeforeLast.reshipLost); setd('or-wbl-damaged', d.weekBeforeLast.reshipDamaged); setd('or-wbl-quality', d.weekBeforeLast.reshipQuality);
   setv('or-wbl-reships', d.weekBeforeLast.reships); setv('or-wbl-defects', d.weekBeforeLast.defects);
   setv('or-wbl-problem', d.weekBeforeLast.problem); setv('or-wbl-major-total', d.weekBeforeLast.majorTotal);
   const pc = document.getElementById('or-problem-container'), mc = document.getElementById('or-major-container');
@@ -4340,7 +4392,7 @@ function toggleOrderReviewBlock() {
   const hide = !body.classList.contains('hidden');
   body.classList.toggle('hidden', hide);
   if (ch) ch.className = hide ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-up';
-  if (!hide) { body.querySelectorAll('textarea').forEach(autoGrowTextarea); if (orderTrendChart) orderTrendChart.resize(); }
+  if (!hide) { body.querySelectorAll('textarea').forEach(autoGrowTextarea); if (orderTrendChart) orderTrendChart.resize(); if (orderReasonsChart) orderReasonsChart.resize(); }
 }
 
 document.addEventListener('input', (e) => {
@@ -4363,6 +4415,7 @@ document.addEventListener('change', (e) => {
    session named "Week of 10/12" plots under "Week of 10/5".
    --------------------------------------------------------------------------- */
 let orderTrendChart = null;
+let orderReasonsChart = null;
 let orderTrendHistory = [];
 let orderTrendTimer = null;
 
@@ -4401,7 +4454,7 @@ function buildOrderTrendSeries(rows, live, weeks) {
   const put = (monday, vals, prio) => {
     if (vals.reships === null && vals.defects === null && vals.problem === null) return;
     const k = orderTrendKey(monday), cur = byWeek.get(k);
-    if (!cur || prio >= cur.prio) byWeek.set(k, { monday, reships: vals.reships, defects: vals.defects, problem: vals.problem, prio });
+    if (!cur || prio >= cur.prio) byWeek.set(k, { monday, reships: vals.reships, defects: vals.defects, problem: vals.problem, lost: vals.lost, damaged: vals.damaged, quality: vals.quality, prio });
   };
   const add = (s, lastWeekPrio) => {
     if (!s || !s.orderReview) return;
@@ -4410,10 +4463,12 @@ function buildOrderTrendSeries(rows, live, weeks) {
     const o = syncCanonOrders(s.orderReview);
     const wb = o.weekBeforeLast, lw = o.lastWeek;
     // the "week before last" column fills a week that may have no session of its own (lowest priority)
-    put(orderTrendMonday(md, 2), { reships: orderTrendNum(wb.reships), defects: orderTrendNum(wb.defects), problem: orderTrendNum(wb.problem) }, 0);
+    put(orderTrendMonday(md, 2), { reships: orderTrendNum(wb.reships), defects: orderTrendNum(wb.defects), problem: orderTrendNum(wb.problem),
+      lost: orderTrendNum(wb.reshipLost), damaged: orderTrendNum(wb.reshipDamaged), quality: orderTrendNum(wb.reshipQuality) }, 0);
     const filled = lw.reships !== '' || lw.defects !== '' || o.problemOrders.length > 0;
     put(orderTrendMonday(md, 1), {
       reships: orderTrendNum(lw.reships), defects: orderTrendNum(lw.defects), problem: filled ? o.problemOrders.length : null,
+      lost: orderTrendNum(lw.reshipLost), damaged: orderTrendNum(lw.reshipDamaged), quality: orderTrendNum(lw.reshipQuality),
     }, lastWeekPrio);
   };
   (rows || []).forEach(r => add(r, 1));
@@ -4422,8 +4477,7 @@ function buildOrderTrendSeries(rows, live, weeks) {
 }
 
 function updateOrderTrendChart() {
-  const canvas = document.getElementById('orderTrendChart');
-  if (!canvas || typeof Chart === 'undefined') return;
+  if (typeof Chart === 'undefined') return;
   const weeks = parseInt(document.getElementById('order-trend-weeks')?.value, 10) || 12;
   const rows = orderTrendHistory.map(r => ({ date_label: r.date_label, created_at: r.created_at, orderReview: r.qc_data && r.qc_data.orderReview }));
   let live = null;
@@ -4432,34 +4486,66 @@ function updateOrderTrendChart() {
   }
   const series = buildOrderTrendSeries(rows, live, weeks);
   const labels = series.map(p => 'Week of ' + (p.monday.getMonth() + 1) + '/' + p.monday.getDate());
-  const vals = [series.map(p => p.reships), series.map(p => p.defects), series.map(p => p.problem)];
 
-  const empty = document.getElementById('order-trend-empty');
-  if (empty) empty.classList.toggle('hidden', series.length > 0);
-
-  if (orderTrendChart) {
-    orderTrendChart.data.labels = labels;
-    orderTrendChart.data.datasets.forEach((ds, i) => { ds.data = vals[i]; });
-    orderTrendChart.update();
-    return;
+  // --- weekly trend lines: Reships / Defects / Problem Orders ---
+  const canvas = document.getElementById('orderTrendChart');
+  if (canvas) {
+    const vals = [series.map(p => p.reships), series.map(p => p.defects), series.map(p => p.problem)];
+    const empty = document.getElementById('order-trend-empty');
+    if (empty) empty.classList.toggle('hidden', series.length > 0);
+    if (orderTrendChart) {
+      orderTrendChart.data.labels = labels;
+      orderTrendChart.data.datasets.forEach((ds, i) => { ds.data = vals[i]; });
+      orderTrendChart.update();
+    } else {
+      const mk = (label, color, data) => ({
+        label, data, borderColor: color, backgroundColor: color, borderWidth: 2.5, tension: 0,
+        pointRadius: 4, pointHoverRadius: 6, pointBackgroundColor: color, spanGaps: true,
+      });
+      orderTrendChart = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: { labels, datasets: [mk('Order Reships', '#f59e0b', vals[0]), mk('Order Defects', '#f43f5e', vals[1]), mk('Problem Orders', '#38bdf8', vals[2])] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: { legend: { labels: { color: '#cbd5e1', usePointStyle: true, boxWidth: 8, boxHeight: 8 } } },
+          scales: {
+            x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148,163,184,0.1)' } },
+            y: { beginAtZero: true, ticks: { color: '#94a3b8', precision: 0 }, grid: { color: 'rgba(148,163,184,0.1)' } },
+          },
+        },
+      });
+    }
   }
-  const mk = (label, color, data) => ({
-    label, data, borderColor: color, backgroundColor: color, borderWidth: 2.5, tension: 0,
-    pointRadius: 4, pointHoverRadius: 6, pointBackgroundColor: color, spanGaps: true,
-  });
-  orderTrendChart = new Chart(canvas.getContext('2d'), {
-    type: 'line',
-    data: { labels, datasets: [mk('Order Reships', '#f59e0b', vals[0]), mk('Order Defects', '#f43f5e', vals[1]), mk('Problem Orders', '#38bdf8', vals[2])] },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: { legend: { labels: { color: '#cbd5e1', usePointStyle: true, boxWidth: 8, boxHeight: 8 } } },
-      scales: {
-        x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148,163,184,0.1)' } },
-        y: { beginAtZero: true, ticks: { color: '#94a3b8', precision: 0 }, grid: { color: 'rgba(148,163,184,0.1)' } },
-      },
-    },
-  });
+
+  // --- reships by reason: stacked bars, one bar per week ---
+  const rCanvas = document.getElementById('orderReasonsChart');
+  if (rCanvas) {
+    const rv = [series.map(p => p.lost), series.map(p => p.damaged), series.map(p => p.quality)];
+    const anyReason = rv.some(arr => arr.some(v => v !== null && v !== undefined));
+    const rEmpty = document.getElementById('order-reasons-empty');
+    if (rEmpty) rEmpty.classList.toggle('hidden', anyReason);
+    if (orderReasonsChart) {
+      orderReasonsChart.data.labels = labels;
+      orderReasonsChart.data.datasets.forEach((ds, i) => { ds.data = rv[i]; });
+      orderReasonsChart.update();
+    } else {
+      const mkBar = (label, color, data) => ({ label, data, backgroundColor: color, borderColor: color, borderWidth: 1, borderRadius: 3 });
+      orderReasonsChart = new Chart(rCanvas.getContext('2d'), {
+        type: 'bar',
+        data: { labels, datasets: [mkBar('Lost', '#a78bfa', rv[0]), mkBar('Damaged', '#fb923c', rv[1]), mkBar('Quality', '#2dd4bf', rv[2])] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: { legend: { labels: { color: '#cbd5e1', usePointStyle: true, boxWidth: 8, boxHeight: 8 } } },
+          scales: {
+            x: { stacked: true, ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148,163,184,0.1)' } },
+            y: { stacked: true, beginAtZero: true, ticks: { color: '#94a3b8', precision: 0 }, grid: { color: 'rgba(148,163,184,0.1)' } },
+          },
+        },
+      });
+    }
+  }
 }
 
 function scheduleOrderTrendUpdate() {
@@ -4481,6 +4567,119 @@ async function refreshOrderTrendHistory() {
 document.addEventListener('input', (e) => {
   if (e.target && e.target.id === 'review-date-input') scheduleOrderTrendUpdate();
 });
+
+/* ---------------------------------------------------------------------------
+   "Current figures" strips: the latest numbers, in large type, just above a chart
+   so the presenter can read them off without hovering over the points.
+   --------------------------------------------------------------------------- */
+function fmtFig(v, kind) {
+  if (v === undefined || v === null || v === '' || v === 'N/C' || isNaN(Number(v))) return '\u2014';
+  const n = Number(v);
+  if (kind === 'pct1') return n.toFixed(1) + '%';
+  if (kind === 'usd') return '$' + Math.round(n).toLocaleString('en-US');
+  if (kind === 'int') return Math.round(n).toLocaleString('en-US');
+  if (kind === 'signed') return (n > 0 ? '+' : '') + Math.round(n).toLocaleString('en-US');
+  return n.toLocaleString('en-US', { maximumFractionDigits: 2 });
+}
+
+function figureStripHtml(captionTop, captionBottom, tiles) {
+  const esc = (t) => String(t === undefined || t === null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  return '<div class="flex flex-wrap items-stretch gap-2.5">'
+    + '<div class="flex flex-col justify-center pr-3 border-r border-slate-700/70">'
+    + '<span class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">' + esc(captionTop) + '</span>'
+    + '<span class="text-xs text-slate-200 font-semibold">' + esc(captionBottom) + '</span></div>'
+    + tiles.map(t =>
+        '<div class="fig-tile flex-1 min-w-[104px] rounded-xl bg-slate-900/80 px-3 py-2 flex items-stretch gap-3" style="border:1px solid ' + t.color + '66">'
+      + '<span class="w-1.5 rounded-full flex-shrink-0" style="background:' + t.color + '"></span>'
+      + '<div><div class="text-[11px] text-slate-400 font-semibold">' + esc(t.label) + '</div>'
+      + '<div class="fig-value text-2xl font-bold font-mono text-white leading-tight">' + esc(t.value) + '</div>'
+      + (t.sub ? '<div class="text-[10px] text-slate-400">' + esc(t.sub) + '</div>' : '') + '</div></div>').join('')
+    + '</div>';
+}
+
+function renderFigureStrip(elId, captionTop, captionBottom, tiles) {
+  const el = document.getElementById(elId);
+  if (el) el.innerHTML = figureStripHtml(captionTop, captionBottom, tiles);
+}
+
+// What each Executive Dashboard chart calls out: the latest week's value for each thing it plots.
+const EXEC_CHART_FIGURES = [
+  { el: 'fig-shipped', tiles: [
+    { label: 'Packages Shipped', key: 'totalShipped', fmt: 'int', color: '#14b8a6' },
+    { label: '48-Hr SLA', key: 'slaPercent', fmt: 'pct1', color: '#34d399' } ] },
+  { el: 'fig-backlog', tiles: [
+    { label: 'End Friday Backlog', key: 'endFriday', fmt: 'int', color: '#38bdf8' },
+    { label: 'Start Monday Backlog', key: 'startMonday', fmt: 'int', color: '#a855f7' },
+    { label: 'Weekend Influx', calc: r => (r.startMonday || 0) - (r.endFriday || 0), fmt: 'signed', color: '#ec4899' } ] },   // same formula as the badge in this card's header
+  { el: 'fig-openpo', tiles: [
+    { label: 'Open PO Valuation', key: 'poValuation', fmt: 'usd', color: '#3b82f6' },
+    { label: 'Open PO Qty', key: 'poQty', fmt: 'int', color: '#10b981' },
+    { label: 'Supplier Count', key: 'supplierCount', fmt: 'int', color: '#f59e0b' } ] },
+  { el: 'fig-builds', tiles: [
+    { label: 'Builds Completed', key: 'buildsCompleted', fmt: 'int', color: '#10b981' },
+    { label: 'Units Built', key: 'unitsBuilt', fmt: 'int', color: '#06b6d4' } ] },
+  { el: 'fig-inventory', tiles: [
+    { label: 'Inventory Valuation', key: 'invValuation', fmt: 'usd', color: '#f59e0b' },
+    { label: 'Stock in Units', key: 'stockUnits', fmt: 'int', color: '#14b8a6' },
+    { label: 'Reservations Units', key: 'reservationsUnits', fmt: 'int', color: '#ef4444' },
+    { label: 'Units on PO', key: 'unitsOnPo', fmt: 'int', color: '#a855f7' } ] },
+  { el: 'fig-rotation', tiles: [
+    { label: 'Rotation A', key: 'custom_rot_a', fmt: 'pct1', color: '#f59e0b' },
+    { label: 'Rotation B', key: 'custom_rot_b', fmt: 'pct1', color: '#38bdf8' },
+    { label: 'Rotation C', key: 'custom_rot_c', fmt: 'pct1', color: '#a855f7' },
+    { label: 'Rotation 0', key: 'custom_rot_0', fmt: 'pct1', color: '#f43f5e' } ] },
+];
+
+function updateChartFigures(dataToUse) {
+  const latest = (dataToUse && dataToUse.length) ? dataToUse[dataToUse.length - 1] : null;
+  EXEC_CHART_FIGURES.forEach(cfg => {
+    const el = document.getElementById(cfg.el);
+    if (!el) return;
+    if (!latest) { el.innerHTML = ''; return; }
+    el.innerHTML = figureStripHtml('Latest week', latest.week, cfg.tiles.map(t => ({ label: t.label, value: fmtFig(t.calc ? t.calc(latest) : latest[t.key], t.fmt), color: t.color })));
+  });
+}
+
+// Custom (sheet-added) metric charts get one tile with their latest value.
+function dynamicFigureHtml(m, latestRow) {
+  if (!latestRow) return '';
+  const kind = m.type === 'currency' ? 'usd' : (m.type === 'percentage' ? 'pct1' : 'num');
+  return '<div class="mb-2">' + figureStripHtml('Latest week', latestRow.week, [{ label: m.label, value: fmtFig(latestRow[m.key], kind), color: '#14b8a6' }]) + '</div>';
+}
+
+// Orders In vs Orders Out: the most recent loaded week that has numbers.
+function updateOrdersInOutFigures(results) {
+  const el = document.getElementById('fig-ordersio');
+  if (!el) return;
+  const last = (results || []).slice().reverse().find(r => r.ordersIn !== null && r.ordersIn !== undefined);
+  if (!last) { el.innerHTML = ''; return; }
+  el.innerHTML = figureStripHtml('Latest week', 'Week of ' + last.label, [
+    { label: 'Orders In', value: fmtFig(last.ordersIn, 'int'), color: '#38bdf8' },
+    { label: 'Orders Out', value: fmtFig(last.ordersOut, 'int'), color: '#f59e0b' } ]);
+}
+
+// Order Review: this session's figures above the trend chart and the reasons chart.
+function updateOrderFigures() {
+  if (!document.getElementById('fig-order-trend')) return;
+  const o = syncCanonOrders(getOrderReview());
+  const s = computeOrderReviewSummary(o);
+  const md = orderTrendMeetingDate(document.getElementById('review-date-input')?.value || '', null);
+  const rep = md ? orderTrendMonday(md, 1) : null;
+  const wk = rep ? 'Reporting week of ' + (rep.getMonth() + 1) + '/' + rep.getDate() : 'Reporting week';
+  const lw = o.lastWeek;
+  const hasReasons = [lw.reshipLost, lw.reshipDamaged, lw.reshipQuality].some(x => x !== '');
+  const sub = hasReasons ? 'Lost ' + (lw.reshipLost || 0) + ' \u00b7 Damaged ' + (lw.reshipDamaged || 0) + ' \u00b7 Quality ' + (lw.reshipQuality || 0) : '';
+  const dash = (v) => (v === '' ? '\u2014' : v);
+  renderFigureStrip('fig-order-trend', 'This session', wk, [
+    { label: 'Order Reships', value: dash(lw.reships), sub: sub, color: '#f59e0b' },
+    { label: 'Order Defects', value: dash(lw.defects), color: '#f43f5e' },
+    { label: 'Problem Orders', value: String(s.problem), color: '#38bdf8' } ]);
+  renderFigureStrip('fig-order-reasons', 'This session', wk, [
+    { label: 'Lost', value: dash(lw.reshipLost), color: '#a78bfa' },
+    { label: 'Damaged', value: dash(lw.reshipDamaged), color: '#fb923c' },
+    { label: 'Quality', value: dash(lw.reshipQuality), color: '#2dd4bf' } ]);
+}
+
 
 
 async function checkForActiveDraftOnLoad() {
